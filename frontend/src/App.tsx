@@ -1,23 +1,20 @@
 import React, { useState, useRef } from 'react';
 import {
   Upload,
-  Music,
-  Video,
   Download,
   AlertCircle,
   Loader2,
   Sparkles,
   Volume2,
-  Plus,
   Play,
   Pause,
 } from 'lucide-react';
-import { ClipCard, SourceFile, ClipItem } from './components/ClipCard';
+import { ClipGroupCard, ClipGroup } from './components/ClipGroupCard';
+import { SectionItem } from './components/SectionCard';
 import { formatTime } from './utils/timeFormat';
 
 export default function App() {
-  const [sourceFiles, setSourceFiles] = useState<SourceFile[]>([]);
-  const [clips, setClips] = useState<ClipItem[]>([]);
+  const [clipGroups, setClipGroups] = useState<ClipGroup[]>([]);
   const [crossfadeSeconds, setCrossfadeSeconds] = useState<number>(0);
   const [normalizeVolume, setNormalizeVolume] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -27,12 +24,27 @@ export default function App() {
   // In-browser sequential audition player
   const [auditionIndex, setAuditionIndex] = useState<number | null>(null);
   const auditionAudioRef = useRef<HTMLAudioElement | null>(null);
-  const clipsRef = useRef(clips);
-  clipsRef.current = clips;
-  const sourceFilesRef = useRef(sourceFiles);
-  sourceFilesRef.current = sourceFiles;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Flattened playable sections list
+  const allPlayableSections = clipGroups.flatMap((group, gIdx) =>
+    group.sections.map((sec, sIdx) => ({
+      clipIndex: gIdx,
+      sectionIndex: sIdx,
+      clipId: group.id,
+      sectionId: sec.id,
+      sourceUrl: group.objectUrl,
+      startSeconds: sec.startSeconds,
+      endSeconds: sec.endSeconds,
+      displayName: `Clip ${gIdx + 1}, Section ${sIdx + 1}${
+        sec.label ? ` (${sec.label})` : ''
+      }`,
+    }))
+  );
+
+  const allPlayableSectionsRef = useRef(allPlayableSections);
+  allPlayableSectionsRef.current = allPlayableSections;
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -62,151 +74,213 @@ export default function App() {
 
       media.onloadedmetadata = () => {
         const duration = Math.round((media.duration || 60) * 10) / 10;
+        const initialEnd = Math.min(duration, 30);
 
-        const newSource: SourceFile = {
+        const newGroup: ClipGroup = {
           id: fileId,
           file,
           name: file.name,
           duration,
           isVideo,
           objectUrl,
-        };
-
-        setSourceFiles((prev) => [...prev, newSource]);
-
-        // Add initial clip for this source (visual trimmer open by default)
-        const initialEnd = Math.min(duration, 30);
-        const newClip: ClipItem = {
-          id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          sourceFileId: fileId,
-          startSeconds: 0,
-          endSeconds: initialEnd,
-          label: '',
-          showWaveform: true,
           showVideoPlayer: false,
+          sections: [
+            {
+              id: `sec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              startSeconds: 0,
+              endSeconds: initialEnd,
+              label: '',
+              showVisualEditor: true, // Visual trimmer timeline open by default
+            },
+          ],
         };
-        setClips((prev) => [...prev, newClip]);
+
+        setClipGroups((prev) => [...prev, newGroup]);
       };
 
       media.onerror = () => {
-        const fallbackSource: SourceFile = {
+        const fallbackGroup: ClipGroup = {
           id: fileId,
           file,
           name: file.name,
           duration: 180,
           isVideo,
           objectUrl,
+          showVideoPlayer: false,
+          sections: [
+            {
+              id: `sec-${Date.now()}`,
+              startSeconds: 0,
+              endSeconds: 30,
+              label: '',
+              showVisualEditor: true,
+            },
+          ],
         };
-        setSourceFiles((prev) => [...prev, fallbackSource]);
-        setClips((prev) => [
-          ...prev,
-          {
-            id: `clip-${Date.now()}`,
-            sourceFileId: fileId,
-            startSeconds: 0,
-            endSeconds: 30,
-            label: '',
-            showWaveform: true,
-            showVideoPlayer: false,
-          },
-        ]);
+        setClipGroups((prev) => [...prev, fallbackGroup]);
       };
     });
   };
 
-  const updateClipRange = (clipId: string, start: number, end: number) => {
-    setClips((prev) =>
-      prev.map((clip) =>
-        clip.id === clipId
-          ? {
-              ...clip,
-              startSeconds: Math.max(0, start),
-              endSeconds: Math.max(start + 0.1, end),
-            }
-          : clip
+  const updateSectionRange = (
+    clipId: string,
+    sectionId: string,
+    start: number,
+    end: number
+  ) => {
+    setClipGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== clipId) return group;
+        return {
+          ...group,
+          sections: group.sections.map((sec) =>
+            sec.id === sectionId
+              ? {
+                  ...sec,
+                  startSeconds: Math.max(0, start),
+                  endSeconds: Math.max(start + 0.1, end),
+                }
+              : sec
+          ),
+        };
+      })
+    );
+  };
+
+  const updateSectionLabel = (
+    clipId: string,
+    sectionId: string,
+    label: string
+  ) => {
+    setClipGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== clipId) return group;
+        return {
+          ...group,
+          sections: group.sections.map((sec) =>
+            sec.id === sectionId ? { ...sec, label } : sec
+          ),
+        };
+      })
+    );
+  };
+
+  const toggleSectionVisualEditor = (clipId: string, sectionId: string) => {
+    setClipGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== clipId) return group;
+        return {
+          ...group,
+          sections: group.sections.map((sec) =>
+            sec.id === sectionId
+              ? { ...sec, showVisualEditor: !sec.showVisualEditor }
+              : sec
+          ),
+        };
+      })
+    );
+  };
+
+  const addSection = (clipId: string) => {
+    setClipGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== clipId) return group;
+        const lastSection = group.sections[group.sections.length - 1];
+        const nextStart = lastSection
+          ? Math.min(Math.max(0, group.duration - 1), lastSection.endSeconds)
+          : 0;
+        const nextEnd = Math.min(group.duration, nextStart + 20);
+
+        const newSection: SectionItem = {
+          id: `sec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          startSeconds: Math.max(0, nextStart),
+          endSeconds: Math.max(nextStart + 0.5, nextEnd),
+          label: '',
+          showVisualEditor: true, // open visual timeline trimmer by default
+        };
+
+        return {
+          ...group,
+          sections: [...group.sections, newSection],
+        };
+      })
+    );
+  };
+
+  const moveSection = (
+    clipId: string,
+    sectionIndex: number,
+    direction: 'up' | 'down'
+  ) => {
+    const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1;
+    setClipGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== clipId) return group;
+        if (targetIndex < 0 || targetIndex >= group.sections.length) return group;
+        const reordered = [...group.sections];
+        const [moved] = reordered.splice(sectionIndex, 1);
+        reordered.splice(targetIndex, 0, moved);
+        return { ...group, sections: reordered };
+      })
+    );
+  };
+
+  const removeSection = (clipId: string, sectionId: string) => {
+    setClipGroups((prev) =>
+      prev
+        .map((group) => {
+          if (group.id !== clipId) return group;
+          return {
+            ...group,
+            sections: group.sections.filter((s) => s.id !== sectionId),
+          };
+        })
+        .filter((group) => group.sections.length > 0)
+    );
+  };
+
+  const toggleVideo = (clipId: string) => {
+    setClipGroups((prev) =>
+      prev.map((group) =>
+        group.id === clipId
+          ? { ...group, showVideoPlayer: !group.showVideoPlayer }
+          : group
       )
     );
   };
 
-  const updateClipLabel = (clipId: string, label: string) => {
-    setClips((prev) =>
-      prev.map((clip) => (clip.id === clipId ? { ...clip, label } : clip))
-    );
-  };
-
-  const toggleWaveform = (clipId: string) => {
-    setClips((prev) =>
-      prev.map((clip) =>
-        clip.id === clipId ? { ...clip, showWaveform: !clip.showWaveform } : clip
-      )
-    );
-  };
-
-  const toggleVideoPlayer = (clipId: string) => {
-    setClips((prev) =>
-      prev.map((clip) =>
-        clip.id === clipId
-          ? { ...clip, showVideoPlayer: !clip.showVideoPlayer }
-          : clip
-      )
-    );
-  };
-
-  const addAnotherCut = (sourceFileId: string, insertAfterIndex?: number) => {
-    const source = sourceFiles.find((s) => s.id === sourceFileId);
-    if (!source) return;
-
-    // Default: pick the next 20 seconds, or 0 to 20
-    const newClip: ClipItem = {
-      id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      sourceFileId,
-      startSeconds: 0,
-      endSeconds: Math.min(source.duration, 20),
-      label: '',
-      showWaveform: true,
-      showVideoPlayer: false,
-    };
-
-    setClips((prev) => {
-      if (typeof insertAfterIndex === 'number' && insertAfterIndex >= 0) {
-        const next = [...prev];
-        next.splice(insertAfterIndex + 1, 0, newClip);
-        return next;
-      }
-      return [...prev, newClip];
+  const moveClipGroup = (clipIndex: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? clipIndex - 1 : clipIndex + 1;
+    if (targetIndex < 0 || targetIndex >= clipGroups.length) return;
+    setClipGroups((prev) => {
+      const reordered = [...prev];
+      const [moved] = reordered.splice(clipIndex, 1);
+      reordered.splice(targetIndex, 0, moved);
+      return reordered;
     });
   };
 
-  const moveClip = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= clips.length) return;
-    const reordered = [...clips];
-    const [moved] = reordered.splice(index, 1);
-    reordered.splice(targetIndex, 0, moved);
-    setClips(reordered);
+  const removeClipGroup = (clipId: string) => {
+    setClipGroups((prev) => prev.filter((g) => g.id !== clipId));
   };
 
-  const removeClip = (clipId: string) => {
-    setClips((prev) => prev.filter((c) => c.id !== clipId));
-  };
-
-  const startAuditionClip = (idx: number) => {
-    const currentClips = clipsRef.current;
-    if (idx < 0 || idx >= currentClips.length) {
+  // Audition playback controller
+  const startAuditionItem = (idx: number) => {
+    const list = allPlayableSectionsRef.current;
+    if (idx < 0 || idx >= list.length) {
       setAuditionIndex(null);
       return;
     }
-    const clip = currentClips[idx];
-    const source = sourceFilesRef.current.find((s) => s.id === clip.sourceFileId);
-    if (!source || !auditionAudioRef.current) {
+    const item = list[idx];
+    const audio = auditionAudioRef.current;
+    if (!audio) {
       setAuditionIndex(null);
       return;
     }
 
     setAuditionIndex(idx);
-    const audio = auditionAudioRef.current;
-    audio.src = source.objectUrl;
-    audio.currentTime = clip.startSeconds;
+    audio.src = item.sourceUrl;
+    audio.currentTime = item.startSeconds;
     audio.play().catch((e) => {
       console.warn('Audition playback notice:', e);
       setAuditionIndex(null);
@@ -220,21 +294,21 @@ export default function App() {
       }
       setAuditionIndex(null);
     } else {
-      if (clips.length > 0) {
-        startAuditionClip(0);
+      if (allPlayableSections.length > 0) {
+        startAuditionItem(0);
       }
     }
   };
 
   const handleAuditionTimeUpdate = () => {
     if (auditionIndex === null || !auditionAudioRef.current) return;
-    const currentClips = clipsRef.current;
-    const currentClip = currentClips[auditionIndex];
-    if (!currentClip) return;
+    const list = allPlayableSectionsRef.current;
+    const item = list[auditionIndex];
+    if (!item) return;
 
-    if (auditionAudioRef.current.currentTime >= currentClip.endSeconds) {
-      if (auditionIndex + 1 < currentClips.length) {
-        startAuditionClip(auditionIndex + 1);
+    if (auditionAudioRef.current.currentTime >= item.endSeconds) {
+      if (auditionIndex + 1 < list.length) {
+        startAuditionItem(auditionIndex + 1);
       } else {
         auditionAudioRef.current.pause();
         setAuditionIndex(null);
@@ -242,15 +316,25 @@ export default function App() {
     }
   };
 
-  const totalEstimatedDuration = clips.reduce((acc, clip, idx) => {
-    const duration = clip.endSeconds - clip.startSeconds;
+  const totalEstimatedDuration = allPlayableSections.reduce((acc, sec, idx) => {
+    const duration = sec.endSeconds - sec.startSeconds;
     const overlap = idx > 0 ? crossfadeSeconds : 0;
     return Math.max(0, acc + duration - overlap);
   }, 0);
 
+  const activeAuditionSectionId =
+    auditionIndex !== null && allPlayableSections[auditionIndex]
+      ? allPlayableSections[auditionIndex].sectionId
+      : null;
+
+  const currentAuditionItem =
+    auditionIndex !== null && allPlayableSections[auditionIndex]
+      ? allPlayableSections[auditionIndex]
+      : null;
+
   const generateMix = async () => {
-    if (clips.length === 0) {
-      setErrorMessage('Please add at least one clip before generating a mix.');
+    if (allPlayableSections.length === 0) {
+      setErrorMessage('Please add at least one section before creating your combined audio.');
       return;
     }
 
@@ -258,19 +342,13 @@ export default function App() {
     setErrorMessage(null);
 
     try {
-      const uniqueSourceIds = Array.from(new Set(clips.map((c) => c.sourceFileId)));
-      const uniqueSources = uniqueSourceIds.map((id) =>
-        sourceFiles.find((s) => s.id === id)!
+      const manifestClips = clipGroups.flatMap((group, groupIndex) =>
+        group.sections.map((section) => ({
+          fileIndex: groupIndex,
+          startSeconds: section.startSeconds,
+          endSeconds: section.endSeconds,
+        }))
       );
-
-      const sourceIdToIndex = new Map<string, number>();
-      uniqueSources.forEach((src, idx) => sourceIdToIndex.set(src.id, idx));
-
-      const manifestClips = clips.map((c) => ({
-        fileIndex: sourceIdToIndex.get(c.sourceFileId) ?? 0,
-        startSeconds: c.startSeconds,
-        endSeconds: c.endSeconds,
-      }));
 
       const manifest = {
         crossfadeSeconds,
@@ -279,8 +357,8 @@ export default function App() {
       };
 
       const formData = new FormData();
-      uniqueSources.forEach((src) => {
-        formData.append('files', src.file, src.name);
+      clipGroups.forEach((group) => {
+        formData.append('files', group.file, group.name);
       });
       formData.append('manifest', JSON.stringify(manifest));
 
@@ -290,7 +368,7 @@ export default function App() {
       });
 
       if (!response.ok) {
-        let errText = 'Failed to generate mix.';
+        let errText = 'Failed to create combined audio.';
         try {
           const json = await response.json();
           errText = json.message || json.error || errText;
@@ -378,41 +456,6 @@ export default function App() {
             Audio tracks are automatically extracted from videos and combined with audio files
           </p>
         </div>
-
-        {/* Uploaded media files library */}
-        {sourceFiles.length > 0 && (
-          <div className="mt-4 bg-stone-100/70 rounded-xl p-3 border border-stone-200/80">
-            <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
-              Uploaded Files ({sourceFiles.length})
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {sourceFiles.map((src) => (
-                <div
-                  key={src.id}
-                  className="bg-white border border-stone-200 rounded-lg px-3 py-1.5 flex items-center gap-2 text-xs shadow-2xs"
-                >
-                  {src.isVideo ? (
-                    <Video className="w-3.5 h-3.5 text-stone-500" />
-                  ) : (
-                    <Music className="w-3.5 h-3.5 text-stone-500" />
-                  )}
-                  <span className="font-medium text-stone-800 truncate max-w-[160px]" title={src.name}>
-                    {src.name}
-                  </span>
-                  <span className="text-stone-400 font-mono">({formatTime(src.duration)})</span>
-                  <button
-                    type="button"
-                    onClick={() => addAnotherCut(src.id)}
-                    className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded text-[11px] font-semibold transition"
-                    title="Add another clip from this file to your sequence"
-                  >
-                    <Plus className="w-3 h-3" /> Add Clip
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </section>
 
       {/* Hidden sequential audio audition player */}
@@ -420,27 +463,24 @@ export default function App() {
         ref={auditionAudioRef}
         onTimeUpdate={handleAuditionTimeUpdate}
         onEnded={() => {
-          if (auditionIndex !== null && auditionIndex + 1 < clips.length) {
-            startAuditionClip(auditionIndex + 1);
+          if (auditionIndex !== null && auditionIndex + 1 < allPlayableSections.length) {
+            startAuditionItem(auditionIndex + 1);
           } else {
             setAuditionIndex(null);
           }
         }}
-        onPause={() => {
-          // If not programmatically transitioning to next clip
-        }}
       />
 
-      {/* Step 2: Medley Sequence */}
-      {clips.length > 0 && (
+      {/* Step 2: Structured Clips & Sections */}
+      {clipGroups.length > 0 && (
         <section className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
-                Step 2: Clip Sequence ({clips.length} {clips.length === 1 ? 'clip' : 'clips'})
+                Step 2: Clips & Sections ({clipGroups.length} {clipGroups.length === 1 ? 'clip' : 'clips'} • {allPlayableSections.length} {allPlayableSections.length === 1 ? 'section' : 'sections'} total)
               </h2>
               <p className="text-xs text-stone-400">
-                Choose start and end times for each clip, then preview the sequence
+                Each clip contains its trimmed sections. You can add multiple sections per clip and arrange their order.
               </p>
             </div>
 
@@ -453,12 +493,12 @@ export default function App() {
                     ? 'bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse'
                     : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-300 shadow-2xs'
                 }`}
-                title="Listen to all clips played in sequence"
+                title="Listen to all clips and sections played in sequence"
               >
-                {auditionIndex !== null ? (
+                {auditionIndex !== null && currentAuditionItem ? (
                   <>
                     <Pause className="w-3.5 h-3.5" />
-                    Stop Playing (Clip #{auditionIndex + 1} of {clips.length})
+                    Stop Playing ({currentAuditionItem.displayName})
                   </>
                 ) : (
                   <>
@@ -477,35 +517,32 @@ export default function App() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            {clips.map((clip, index) => {
-              const source = sourceFiles.find((s) => s.id === clip.sourceFileId);
-              if (!source) return null;
-
-              return (
-                <ClipCard
-                  key={clip.id}
-                  clip={clip}
-                  index={index}
-                  totalClips={clips.length}
-                  source={source}
-                  isAuditioning={auditionIndex === index}
-                  onUpdateRange={updateClipRange}
-                  onUpdateLabel={updateClipLabel}
-                  onToggleWaveform={toggleWaveform}
-                  onToggleVideo={toggleVideoPlayer}
-                  onAddAnotherCut={addAnotherCut}
-                  onMoveClip={moveClip}
-                  onRemoveClip={removeClip}
-                />
-              );
-            })}
+          {/* Grouped Clips List */}
+          <div className="space-y-6">
+            {clipGroups.map((group, index) => (
+              <ClipGroupCard
+                key={group.id}
+                clipGroup={group}
+                clipIndex={index}
+                totalClips={clipGroups.length}
+                activeAuditionSectionId={activeAuditionSectionId}
+                onUpdateSectionRange={updateSectionRange}
+                onUpdateSectionLabel={updateSectionLabel}
+                onToggleSectionVisualEditor={toggleSectionVisualEditor}
+                onAddSection={addSection}
+                onMoveSection={moveSection}
+                onRemoveSection={removeSection}
+                onToggleVideo={toggleVideo}
+                onMoveClip={moveClipGroup}
+                onRemoveClip={removeClipGroup}
+              />
+            ))}
           </div>
         </section>
       )}
 
       {/* Step 3: Transition & Volume Settings */}
-      {clips.length > 0 && (
+      {clipGroups.length > 0 && (
         <section className="mb-8 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500 mb-4">
             Step 3: Transitions & Volume
@@ -555,7 +592,7 @@ export default function App() {
       )}
 
       {/* Step 4: Export Final Audio */}
-      {clips.length > 0 && (
+      {clipGroups.length > 0 && (
         <section className="mb-12">
           <button
             type="button"
@@ -571,7 +608,7 @@ export default function App() {
             ) : (
               <>
                 <Sparkles className="w-5 h-5 text-amber-400" />
-                Create & Download Combined Audio ({clips.length} {clips.length === 1 ? 'clip' : 'clips'} • ~
+                Create & Download Combined Audio ({clipGroups.length} {clipGroups.length === 1 ? 'clip' : 'clips'} • ~
                 {formatTime(totalEstimatedDuration)})
               </>
             )}
