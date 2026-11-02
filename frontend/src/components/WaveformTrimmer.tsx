@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
-import { Play, Pause, RotateCcw, Crosshair } from 'lucide-react';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 import { formatTime } from '../utils/timeFormat';
 
 interface WaveformTrimmerProps {
@@ -23,7 +23,6 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
   const activeRegionRef = useRef<any>(null);
 
   const [isPlayingSnippet, setIsPlayingSnippet] = useState(false);
-  const [isPlayingFull, setIsPlayingFull] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -33,13 +32,14 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
 
     const objectUrl = URL.createObjectURL(file);
 
+    // Uniform wave color with NO two-color split, sleek amber playhead needle
     const ws = WaveSurfer.create({
       container: containerRef.current,
-      waveColor: '#dec2b1',
-      progressColor: '#8e5845',
-      cursorColor: '#44403c',
+      waveColor: '#d6d3d1',
+      progressColor: '#d6d3d1', // Identical to waveColor: eliminates the confusing dark/light split line!
+      cursorColor: '#ea580c',   // Subtle orange playhead needle that moves only while playing
       cursorWidth: 2,
-      height: 85,
+      height: 80,
       normalize: true,
       url: objectUrl,
     });
@@ -57,7 +57,7 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
       const region = regions.addRegion({
         start: Math.max(0, safeStart),
         end: Math.max(safeStart + 0.2, safeEnd),
-        color: 'rgba(189, 132, 110, 0.35)',
+        color: 'rgba(245, 158, 11, 0.12)',
         drag: true,
         resize: true,
       });
@@ -90,12 +90,10 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
 
     ws.on('pause', () => {
       setIsPlayingSnippet(false);
-      setIsPlayingFull(false);
     });
 
     ws.on('finish', () => {
       setIsPlayingSnippet(false);
-      setIsPlayingFull(false);
     });
 
     return () => {
@@ -104,7 +102,7 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
     };
   }, [file]);
 
-  // Synchronize region if parent inputs changed
+  // Synchronize region if parent time inputs change
   useEffect(() => {
     if (!activeRegionRef.current || !isReady) return;
     const region = activeRegionRef.current;
@@ -124,35 +122,7 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
       wavesurferRef.current.setTime(activeRegionRef.current.start);
       wavesurferRef.current.play();
       setIsPlayingSnippet(true);
-      setIsPlayingFull(false);
     }
-  };
-
-  const togglePlayFull = () => {
-    if (!wavesurferRef.current) return;
-    if (isPlayingFull) {
-      wavesurferRef.current.pause();
-    } else {
-      wavesurferRef.current.play();
-      setIsPlayingFull(true);
-      setIsPlayingSnippet(false);
-    }
-  };
-
-  const setStartToPlayhead = () => {
-    if (!activeRegionRef.current || !wavesurferRef.current) return;
-    const now = Math.round(wavesurferRef.current.getCurrentTime() * 10) / 10;
-    const newEnd = Math.max(now + 0.5, endSeconds);
-    activeRegionRef.current.setOptions({ start: now, end: newEnd });
-    onRangeChange(now, newEnd);
-  };
-
-  const setEndToPlayhead = () => {
-    if (!activeRegionRef.current || !wavesurferRef.current) return;
-    const now = Math.round(wavesurferRef.current.getCurrentTime() * 10) / 10;
-    const newStart = Math.min(startSeconds, now - 0.5);
-    activeRegionRef.current.setOptions({ start: newStart, end: now });
-    onRangeChange(newStart, now);
   };
 
   const resetToFull = () => {
@@ -162,73 +132,46 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
     onRangeChange(0, Math.round(total * 10) / 10);
   };
 
+  const duration = Math.max(0, endSeconds - startSeconds);
+
   return (
-    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200 mt-3 text-xs">
-      {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
-        <div className="flex items-center gap-2">
+    <div className="bg-stone-50/80 rounded-xl p-3.5 border border-stone-200 mt-3 text-xs">
+      {/* Streamlined QuickTime-Style Toolbar */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={playSnippet}
             disabled={!isReady}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold text-stone-900 bg-amber-100 hover:bg-amber-200 text-stone-900 border border-amber-300 rounded-lg shadow-sm transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1 font-semibold text-stone-900 bg-amber-400 hover:bg-amber-500 text-stone-900 rounded-lg shadow-2xs transition disabled:opacity-50 cursor-pointer text-xs"
           >
             {isPlayingSnippet ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-            {isPlayingSnippet ? 'Pause Selection' : '▶ Play Selection'}
+            {isPlayingSnippet ? 'Pause' : 'Play Selection'}
           </button>
 
-          <button
-            type="button"
-            onClick={togglePlayFull}
-            disabled={!isReady}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition disabled:opacity-50"
-          >
-            {isPlayingFull ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-            {isPlayingFull ? 'Pause Full' : 'Play Full File'}
-          </button>
-
-          <span className="font-mono text-stone-500 pl-1">
-            {formatTime(currentTime)}
+          <span className="text-xs text-stone-500 font-medium">
+            {isPlayingSnippet ? (
+              <span className="text-amber-800 font-mono font-semibold">
+                ▶ {formatTime(currentTime)} <span className="text-stone-400 font-normal">/ {formatTime(endSeconds)}</span>
+              </span>
+            ) : (
+              `${formatTime(startSeconds)} – ${formatTime(endSeconds)} (${duration.toFixed(1)}s)`
+            )}
           </span>
         </div>
 
-        {/* Quick Marker Buttons */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={setStartToPlayhead}
-            disabled={!isReady}
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition disabled:opacity-50"
-            title="Set start point to current position"
-          >
-            <Crosshair className="w-3 h-3 text-amber-700" />
-            Set Start [{formatTime(currentTime)}]
-          </button>
-
-          <button
-            type="button"
-            onClick={setEndToPlayhead}
-            disabled={!isReady}
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition disabled:opacity-50"
-            title="Set end point to current position"
-          >
-            <Crosshair className="w-3 h-3 text-red-600" />
-            Set End [{formatTime(currentTime)}]
-          </button>
-
-          <button
-            type="button"
-            onClick={resetToFull}
-            disabled={!isReady}
-            className="p-1 text-stone-500 hover:text-stone-800 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition"
-            title="Reset to full file"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={resetToFull}
+          disabled={!isReady}
+          className="p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-md transition"
+          title="Reset selection to full file"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      {/* Visual Timeline Canvas */}
+      {/* Visual Timeline Canvas with Framed QuickTime Drag Handles */}
       {loadError ? (
         <div className="p-3 bg-amber-50 text-amber-800 rounded-lg text-xs border border-amber-200">
           {loadError}
@@ -242,22 +185,24 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
           )}
           <div
             ref={containerRef}
-            className="w-full bg-white rounded-lg border border-stone-200 p-2 shadow-inner cursor-pointer min-h-[90px]"
-            title="Click to jump position, or drag the shaded handles to adjust the selected part"
+            className="trimmer-container w-full bg-white rounded-lg border border-stone-300 shadow-inner cursor-pointer min-h-[80px] overflow-hidden"
+            title="Drag the left handle to set Start, right handle to set End, or drag the frame to move selection"
           />
         </div>
       )}
 
       {/* Footer Info */}
-      <div className="flex items-center justify-between mt-2.5 text-stone-600 font-mono text-[11px]">
-        <div>
-          Start: <span className="font-semibold text-stone-900">{formatTime(startSeconds)}</span> ({startSeconds.toFixed(1)}s)
+      <div className="flex items-center justify-between mt-2 text-stone-600 font-mono text-[11px]">
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+          Start: <span className="font-semibold text-stone-900">{formatTime(startSeconds)}</span>
         </div>
-        <div className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200 font-bold">
-          Length: {(endSeconds - startSeconds).toFixed(1)}s
+        <div className="bg-amber-100/70 text-amber-900 px-2 py-0.5 rounded border border-amber-200/80 font-bold text-[10px]">
+          Selected: {duration.toFixed(1)}s
         </div>
-        <div>
-          End: <span className="font-semibold text-stone-900">{formatTime(endSeconds)}</span> ({endSeconds.toFixed(1)}s)
+        <div className="flex items-center gap-1">
+          End: <span className="font-semibold text-stone-900">{formatTime(endSeconds)}</span>
+          <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
         </div>
       </div>
     </div>

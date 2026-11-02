@@ -5,3 +5,60 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
+
+/* QuickTime / Mobile Trimmer handles for Wavesurfer regions */
+.trimmer-container [part*="region"] {
+  border-top: 3px solid #f59e0b !important;
+  border-bottom: 3px solid #f59e0b !important;
+  border-left: none !important;
+  border-right: none !important;
+  box-shadow: 0 0 0 9999px rgba(28, 25, 23, 0.40) !important;
+  border-radius: 4px !important;
+  pointer-events: auto !important;
+}
+
+.trimmer-container [part*="region-handle-left"] {
+  width: 14px !important;
+  background-color: #f59e0b !important;
+  border-top-left-radius: 6px !important;
+  border-bottom-left-radius: 6px !important;
+  left: 0px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: ew-resize !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  z-index: 10 !important;
+}
+
+.trimmer-container [part*="region-handle-left"]::after {
+  content: '❙' !important;
+  color: #78350f !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  user-select: none !important;
+  margin-left: -1px !important;
+}
+
+.trimmer-container [part*="region-handle-right"] {
+  width: 14px !important;
+  background-color: #f59e0b !important;
+  border-top-right-radius: 6px !important;
+  border-bottom-right-radius: 6px !important;
+  right: 0px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: ew-resize !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  z-index: 10 !important;
+}
+
+.trimmer-container [part*="region-handle-right"]::after {
+  content: '❙' !important;
+  color: #78350f !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  user-select: none !important;
+  margin-right: -1px !important;
+}
