@@ -1,6 +1,7 @@
 package com.cozicut.api;
 
 import com.cozicut.mix.AudioMixService;
+import com.cozicut.mix.VideoMixService;
 import com.cozicut.trim.TrimmedAudio;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,9 @@ class AudioMixControllerTest {
 
     @MockitoBean
     private AudioMixService audioMixService;
+
+    @MockitoBean
+    private VideoMixService videoMixService;
 
     private static final byte[] FAKE_BYTES = new byte[]{1, 2, 3};
 
@@ -168,5 +172,44 @@ class AudioMixControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error", is("Bad Request")))
                 .andExpect(jsonPath("$.message", containsString("must be greater than crossfade duration")));
+    }
+
+    @Test
+    @DisplayName("Video mix request with format=mp4 returns 200 OK and streams cozicut_video.mp4")
+    void validVideoMixStreamsMp4() throws Exception {
+        Path tempDir = Files.createTempDirectory("test-video-workspace-");
+        Path tempOutput = tempDir.resolve("master_mix.mp4");
+        byte[] expectedContent = "mock-video-content".getBytes();
+        Files.write(tempOutput, expectedContent);
+
+        when(videoMixService.mixVideo(any(), any()))
+                .thenReturn(new TrimmedAudio(tempDir, tempOutput));
+
+        MockMultipartFile file = new MockMultipartFile("files", "clip.mp4", "video/mp4", FAKE_BYTES);
+
+        String manifest = """
+                {
+                  "clips": [
+                    {"fileIndex": 0, "startSeconds": 0.0, "endSeconds": 5.0}
+                  ]
+                }
+                """;
+
+        MvcResult mvcResult = mockMvc.perform(multipart("/api/v1/audio/mixes")
+                        .file(file)
+                        .param("manifest", manifest)
+                        .param("format", "mp4"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        byte[] responseContent = mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "video/mp4"))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"cozicut_video.mp4\""))
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray();
+
+        assertArrayEquals(expectedContent, responseContent);
     }
 }

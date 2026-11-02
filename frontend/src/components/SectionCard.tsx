@@ -6,6 +6,7 @@ import {
   ArrowDown,
   Trash2,
   Scissors,
+  GripVertical,
 } from 'lucide-react';
 import { WaveformTrimmer } from './WaveformTrimmer';
 import { formatTime, parseTime } from '../utils/timeFormat';
@@ -31,6 +32,7 @@ interface SectionCardProps {
   onUpdateLabel: (sectionId: string, label: string) => void;
   onToggleVisualEditor: (sectionId: string) => void;
   onMoveSection: (sectionIndex: number, direction: 'up' | 'down') => void;
+  onReorderSection?: (sourceIndex: number, targetIndex: number) => void;
   onRemoveSection: (sectionId: string) => void;
 }
 
@@ -47,6 +49,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   onUpdateLabel,
   onToggleVisualEditor,
   onMoveSection,
+  onReorderSection,
   onRemoveSection,
 }) => {
   // Local string states for smooth free-form typing without cursor fighting
@@ -55,6 +58,10 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   const [durationInput, setDurationInput] = useState(
     (section.endSeconds - section.startSeconds).toFixed(1)
   );
+
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // In-browser preview state for this specific section
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -134,10 +141,40 @@ export const SectionCard: React.FC<SectionCardProps> = ({
 
   return (
     <div
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('application/x-cozicut-section')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }
+      }}
+      onDragEnter={(e) => {
+        if (e.dataTransfer.types.includes('application/x-cozicut-section')) {
+          e.preventDefault();
+          setIsDragOver(true);
+        }
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const data = e.dataTransfer.getData('application/x-cozicut-section');
+        if (data) {
+          const srcIdx = parseInt(data, 10);
+          if (!isNaN(srcIdx) && srcIdx !== sectionIndex && onReorderSection) {
+            onReorderSection(srcIdx, sectionIndex);
+          }
+        }
+      }}
       className={`rounded-xl border transition p-4 ${
+        isDragging ? 'opacity-40 scale-[0.99] border-dashed border-stone-400 shadow-none' : ''
+      } ${
+        isDragOver ? 'ring-2 ring-amber-500 bg-amber-50/50 border-amber-400' : ''
+      } ${
         isAuditioning
           ? 'bg-amber-50/60 border-amber-400 ring-2 ring-amber-200'
-          : 'bg-white border-stone-200/90 shadow-2xs hover:border-stone-300'
+          : !isDragOver && !isDragging
+          ? 'bg-white border-stone-200/90 shadow-2xs hover:border-stone-300'
+          : ''
       }`}
     >
       {/* Hidden audio element for previewing this specific section */}
@@ -151,7 +188,24 @@ export const SectionCard: React.FC<SectionCardProps> = ({
 
       {/* Section Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {/* Drag Handle */}
+          {totalSections > 1 && (
+            <div
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/x-cozicut-section', sectionIndex.toString());
+                e.dataTransfer.effectAllowed = 'move';
+                setIsDragging(true);
+              }}
+              onDragEnd={() => setIsDragging(false)}
+              className="cursor-grab active:cursor-grabbing p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded transition"
+              title="Drag to reorder section within this clip"
+            >
+              <GripVertical className="w-4 h-4" />
+            </div>
+          )}
+
           <span className="px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200/80 text-stone-700 font-semibold text-xs tracking-tight">
             Section {sectionIndex + 1}
           </span>

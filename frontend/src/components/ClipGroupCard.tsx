@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Music,
   Video,
@@ -7,6 +7,7 @@ import {
   Trash2,
   Plus,
   Film,
+  GripVertical,
 } from 'lucide-react';
 import { SectionCard, SectionItem } from './SectionCard';
 import { formatTime } from '../utils/timeFormat';
@@ -32,9 +33,11 @@ interface ClipGroupCardProps {
   onToggleSectionVisualEditor: (clipId: string, sectionId: string) => void;
   onAddSection: (clipId: string) => void;
   onMoveSection: (clipId: string, sectionIndex: number, direction: 'up' | 'down') => void;
+  onReorderSections?: (clipId: string, sourceIndex: number, targetIndex: number) => void;
   onRemoveSection: (clipId: string, sectionId: string) => void;
   onToggleVideo: (clipId: string) => void;
   onMoveClip: (clipIndex: number, direction: 'up' | 'down') => void;
+  onReorderClips?: (sourceIndex: number, targetIndex: number) => void;
   onRemoveClip: (clipId: string) => void;
 }
 
@@ -48,12 +51,16 @@ export const ClipGroupCard: React.FC<ClipGroupCardProps> = ({
   onToggleSectionVisualEditor,
   onAddSection,
   onMoveSection,
+  onReorderSections,
   onRemoveSection,
   onToggleVideo,
   onMoveClip,
+  onReorderClips,
   onRemoveClip,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const totalSelectedSeconds = clipGroup.sections.reduce(
     (acc, sec) => acc + Math.max(0, sec.endSeconds - sec.startSeconds),
@@ -61,10 +68,60 @@ export const ClipGroupCard: React.FC<ClipGroupCardProps> = ({
   );
 
   return (
-    <div className="bg-stone-50/70 border border-stone-200 hover:border-stone-300 rounded-2xl p-5 shadow-sm transition">
+    <div
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('application/x-cozicut-clip')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }
+      }}
+      onDragEnter={(e) => {
+        if (e.dataTransfer.types.includes('application/x-cozicut-clip')) {
+          e.preventDefault();
+          setIsDragOver(true);
+        }
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const data = e.dataTransfer.getData('application/x-cozicut-clip');
+        if (data) {
+          const srcIdx = parseInt(data, 10);
+          if (!isNaN(srcIdx) && srcIdx !== clipIndex && onReorderClips) {
+            onReorderClips(srcIdx, clipIndex);
+          }
+        }
+      }}
+      className={`border rounded-2xl p-5 shadow-sm transition ${
+        isDragging ? 'opacity-40 scale-[0.99] border-dashed border-stone-400 bg-stone-100/50 shadow-none' : ''
+      } ${
+        isDragOver ? 'ring-2 ring-amber-500 bg-amber-50/40 border-amber-400' : ''
+      } ${
+        !isDragging && !isDragOver
+          ? 'bg-stone-50/70 border-stone-200 hover:border-stone-300'
+          : ''
+      }`}
+    >
       {/* Top-Level Clip Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-200/80">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {totalClips > 1 && (
+            <div
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/x-cozicut-clip', clipIndex.toString());
+                e.dataTransfer.effectAllowed = 'move';
+                setIsDragging(true);
+              }}
+              onDragEnd={() => setIsDragging(false)}
+              className="cursor-grab active:cursor-grabbing p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 rounded-lg transition"
+              title="Drag to reorder clip sequence"
+            >
+              <GripVertical className="w-4 h-4" />
+            </div>
+          )}
+
           <span className="w-8 h-8 rounded-xl bg-stone-900 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
             #{clipIndex + 1}
           </span>
@@ -191,6 +248,9 @@ export const ClipGroupCard: React.FC<ClipGroupCardProps> = ({
             }
             onMoveSection={(sIdx, dir) =>
               onMoveSection(clipGroup.id, sIdx, dir)
+            }
+            onReorderSection={(src, target) =>
+              onReorderSections && onReorderSections(clipGroup.id, src, target)
             }
             onRemoveSection={(sId) =>
               onRemoveSection(clipGroup.id, sId)

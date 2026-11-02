@@ -4,23 +4,42 @@ import {
   Download,
   AlertCircle,
   Loader2,
-  Sparkles,
   Volume2,
   Play,
   Pause,
   Link,
+  Film,
+  Music,
+  CheckCircle2,
+  RotateCcw,
 } from 'lucide-react';
 import { ClipGroupCard, ClipGroup } from './components/ClipGroupCard';
 import { SectionItem } from './components/SectionCard';
 import { formatTime } from './utils/timeFormat';
+import {
+  saveMediaBlob,
+  getMediaBlob,
+  deleteMediaBlob,
+  clearCompleteSession,
+  saveSessionMetadata,
+  loadSessionMetadata,
+  SavedSession,
+} from './utils/sessionStore';
 
 export default function App() {
   const [clipGroups, setClipGroups] = useState<ClipGroup[]>([]);
   const [crossfadeSeconds, setCrossfadeSeconds] = useState<number>(0);
   const [normalizeVolume, setNormalizeVolume] = useState<boolean>(false);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isExportingAudio, setIsExportingAudio] = useState<boolean>(false);
+  const [isExportingVideo, setIsExportingVideo] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [masterAudioUrl, setMasterAudioUrl] = useState<string | null>(null);
+  const [masterVideoUrl, setMasterVideoUrl] = useState<string | null>(null);
+
+  // Session auto-save state
+  const [isSessionLoaded, setIsSessionLoaded] = useState<boolean>(false);
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // URL import state
   const [urlInput, setUrlInput] = useState<string>('');
@@ -37,7 +56,9 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generatedAudioSectionRef = useRef<HTMLDivElement>(null);
+  const generatedVideoSectionRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll when media is exported
   useEffect(() => {
     if (masterAudioUrl && generatedAudioSectionRef.current) {
       generatedAudioSectionRef.current.scrollIntoView({
@@ -46,6 +67,142 @@ export default function App() {
       });
     }
   }, [masterAudioUrl]);
+
+  useEffect(() => {
+    if (masterVideoUrl && generatedVideoSectionRef.current) {
+      generatedVideoSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [masterVideoUrl]);
+
+  // Restore session from IndexedDB + LocalStorage on mount
+  useEffect(() => {
+    let isCancelled = false;
+    async function restoreSession() {
+      try {
+        const saved = loadSessionMetadata();
+        if (!saved || !saved.clips || saved.clips.length === 0) {
+          setIsSessionLoaded(true);
+          return;
+        }
+
+        setCrossfadeSeconds(saved.crossfadeSeconds ?? 0);
+        setNormalizeVolume(saved.normalizeVolume ?? false);
+
+        const restoredGroups: ClipGroup[] = [];
+        for (const c of saved.clips) {
+          const blob = await getMediaBlob(c.id);
+          if (blob) {
+            const file = new File([blob], c.name, {
+              type: blob.type || (c.isVideo ? 'video/mp4' : 'audio/mpeg'),
+            });
+            const objectUrl = URL.createObjectURL(blob);
+            restoredGroups.push({
+              id: c.id,
+              name: c.name,
+              file,
+              duration: c.duration,
+              isVideo: c.isVideo,
+              objectUrl,
+              showVideoPlayer: false,
+              sections: c.sections,
+            });
+          }
+        }
+
+        if (!isCancelled && restoredGroups.length > 0) {
+          setClipGroups(restoredGroups);
+          setLastSavedTime(
+            new Date(saved.updatedAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          );
+        }
+      } catch (err) {
+        console.warn('Failed to restore saved session:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsSessionLoaded(true);
+        }
+      }
+    }
+
+    restoreSession();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  // Debounced session auto-save (saves blobs to IndexedDB + metadata to LocalStorage)
+  useEffect(() => {
+    if (!isSessionLoaded) return;
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (clipGroups.length === 0) {
+        saveSessionMetadata({
+          version: 1,
+          updatedAt: Date.now(),
+          crossfadeSeconds,
+          normalizeVolume,
+          clips: [],
+        });
+        return;
+      }
+
+      for (const group of clipGroups) {
+        await saveMediaBlob(group.id, group.file, group.name);
+      }
+
+      const metadata: SavedSession = {
+        version: 1,
+        updatedAt: Date.now(),
+        crossfadeSeconds,
+        normalizeVolume,
+        clips: clipGroups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          duration: g.duration,
+          isVideo: g.isVideo,
+          sections: g.sections,
+        })),
+      };
+      saveSessionMetadata(metadata);
+      setLastSavedTime(
+        new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      );
+    }, 600);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [clipGroups, crossfadeSeconds, normalizeVolume, isSessionLoaded]);
+
+  // Clear session / Start Fresh
+  const handleClearSession = async () => {
+    if (clipGroups.length > 0) {
+      const confirmed = window.confirm(
+        'Start a fresh project? All loaded clips and cut sections will be cleared.'
+      );
+      if (!confirmed) return;
+    }
+    stopAudition();
+    setClipGroups([]);
+    setMasterAudioUrl(null);
+    setMasterVideoUrl(null);
+    setCrossfadeSeconds(0);
+    setNormalizeVolume(false);
+    setLastSavedTime(null);
+    await clearCompleteSession();
+  };
 
   // Flattened playable sections list
   const allPlayableSections = clipGroups.flatMap((group, gIdx) =>
@@ -165,7 +322,7 @@ export default function App() {
               startSeconds: 0,
               endSeconds: initialEnd,
               label: '',
-              showVisualEditor: true, // Visual trimmer timeline open by default
+              showVisualEditor: true,
             },
           ],
         };
@@ -271,7 +428,7 @@ export default function App() {
           startSeconds: Math.max(0, nextStart),
           endSeconds: Math.max(nextStart + 0.5, nextEnd),
           label: '',
-          showVisualEditor: true, // open visual timeline trimmer by default
+          showVisualEditor: true,
         };
 
         return {
@@ -294,6 +451,24 @@ export default function App() {
         if (targetIndex < 0 || targetIndex >= group.sections.length) return group;
         const reordered = [...group.sections];
         const [moved] = reordered.splice(sectionIndex, 1);
+        reordered.splice(targetIndex, 0, moved);
+        return { ...group, sections: reordered };
+      })
+    );
+  };
+
+  // Drag-and-drop reordering for sections within a clip
+  const handleReorderSections = (
+    clipId: string,
+    sourceIndex: number,
+    targetIndex: number
+  ) => {
+    if (sourceIndex === targetIndex) return;
+    setClipGroups((prev) =>
+      prev.map((group) => {
+        if (group.id !== clipId) return group;
+        const reordered = [...group.sections];
+        const [moved] = reordered.splice(sourceIndex, 1);
         reordered.splice(targetIndex, 0, moved);
         return { ...group, sections: reordered };
       })
@@ -335,8 +510,20 @@ export default function App() {
     });
   };
 
+  // Drag-and-drop reordering for entire clips
+  const handleReorderClips = (sourceIndex: number, targetIndex: number) => {
+    if (sourceIndex === targetIndex) return;
+    setClipGroups((prev) => {
+      const reordered = [...prev];
+      const [moved] = reordered.splice(sourceIndex, 1);
+      reordered.splice(targetIndex, 0, moved);
+      return reordered;
+    });
+  };
+
   const removeClipGroup = (clipId: string) => {
     setClipGroups((prev) => prev.filter((g) => g.id !== clipId));
+    deleteMediaBlob(clipId);
   };
 
   // Audition playback controller with dual-player crossfading
@@ -465,6 +652,8 @@ export default function App() {
     return Math.max(0, acc + duration - overlap);
   }, 0);
 
+  const hasAnyVideo = clipGroups.some((g) => g.isVideo);
+
   const activeAuditionSectionId =
     auditionIndex !== null && allPlayableSections[auditionIndex]
       ? allPlayableSections[auditionIndex].sectionId
@@ -475,15 +664,21 @@ export default function App() {
       ? allPlayableSections[auditionIndex]
       : null;
 
-  const generateMix = async () => {
+  // Unified mix generator for MP3 audio and MP4 video
+  const generateMix = async (format: 'mp3' | 'mp4') => {
     if (allPlayableSections.length === 0) {
-      setErrorMessage('Please add at least one section before creating your combined audio.');
+      setErrorMessage(`Please add at least one section before creating your ${format === 'mp4' ? 'video' : 'audio'}.`);
       return;
     }
 
-    setIsGenerating(true);
+    if (format === 'mp4') {
+      setIsExportingVideo(true);
+      setMasterVideoUrl(null);
+    } else {
+      setIsExportingAudio(true);
+      setMasterAudioUrl(null);
+    }
     setErrorMessage(null);
-    setMasterAudioUrl(null);
 
     try {
       const manifestClips = clipGroups.flatMap((group, groupIndex) =>
@@ -506,13 +701,13 @@ export default function App() {
       });
       formData.append('manifest', JSON.stringify(manifest));
 
-      const response = await fetch('/api/v1/audio/mixes', {
+      const response = await fetch(`/api/v1/audio/mixes?format=${format}`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        let errText = 'Failed to create combined audio.';
+        let errText = `Failed to create combined ${format === 'mp4' ? 'video' : 'audio'}.`;
         try {
           const json = await response.json();
           errText = json.message || json.error || errText;
@@ -524,34 +719,76 @@ export default function App() {
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      setMasterAudioUrl(url);
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'cozicut_audio.mp3';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      if (format === 'mp4') {
+        setMasterVideoUrl(url);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'cozicut_video.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        setMasterAudioUrl(url);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'cozicut_audio.mp3';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while creating your audio.');
+      setErrorMessage(
+        err.message || `An error occurred while creating your ${format === 'mp4' ? 'video' : 'audio'}.`
+      );
     } finally {
-      setIsGenerating(false);
+      if (format === 'mp4') {
+        setIsExportingVideo(false);
+      } else {
+        setIsExportingAudio(false);
+      }
     }
   };
+
+  const isGenerating = isExportingAudio || isExportingVideo;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Header */}
       <header className="mb-8 pb-6 border-b border-stone-200">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-stone-900 text-stone-100 flex items-center justify-center font-bold text-lg shadow-sm">
-            ✂️
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-stone-900 text-stone-100 flex items-center justify-center font-bold text-lg shadow-sm">
+              ✂️
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-stone-900">CoziCut</h1>
+              <p className="text-sm text-stone-500">
+                Trim & Combine Audio and Video Clips
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-stone-900">CoziCut</h1>
-            <p className="text-sm text-stone-500">
-              Trim & Combine Audio and Video Clips
-            </p>
+
+          {/* Session Auto-Save & Reset Status */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {lastSavedTime && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-stone-600 bg-stone-100/90 border border-stone-200 px-3 py-1.5 rounded-full font-medium shadow-2xs">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Auto-saved at {lastSavedTime}</span>
+              </span>
+            )}
+
+            {clipGroups.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearSession}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 bg-white hover:bg-stone-50 rounded-full border border-stone-200 transition shadow-2xs"
+                title="Clear current workspace and start fresh"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-stone-400" />
+                Start Fresh
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -665,7 +902,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-xs text-stone-500 mb-3">
-                Drag & drop audio or video files. Videos are automatically converted to audio.
+                Drag & drop audio or video files. Videos and songs can be combined into video or audio medleys.
               </p>
             </div>
 
@@ -731,7 +968,7 @@ export default function App() {
                 Step 2: Clips & Sections ({clipGroups.length} {clipGroups.length === 1 ? 'clip' : 'clips'} • {allPlayableSections.length} {allPlayableSections.length === 1 ? 'section' : 'sections'} total)
               </h2>
               <p className="text-xs text-stone-400">
-                Each clip contains its trimmed sections. You can add multiple sections per clip and arrange their order.
+                Drag cards by their handle (⋮⋮) or use arrows to reorder. You can add multiple sections per clip.
               </p>
             </div>
 
@@ -782,9 +1019,11 @@ export default function App() {
                 onToggleSectionVisualEditor={toggleSectionVisualEditor}
                 onAddSection={addSection}
                 onMoveSection={moveSection}
+                onReorderSections={handleReorderSections}
                 onRemoveSection={removeSection}
                 onToggleVideo={toggleVideo}
                 onMoveClip={moveClipGroup}
+                onReorderClips={handleReorderClips}
                 onRemoveClip={removeClipGroup}
               />
             ))}
@@ -851,39 +1090,127 @@ export default function App() {
         </section>
       )}
 
-      {/* Step 4: Export Final Audio */}
+      {/* Step 4: Export Final Combined Medley (Audio & Video Options) */}
       {clipGroups.length > 0 && (
         <section className="mb-12">
-          <button
-            type="button"
-            onClick={generateMix}
-            disabled={isGenerating}
-            className="w-full py-4 px-6 rounded-2xl bg-stone-900 hover:bg-black text-white font-semibold text-base shadow-lg shadow-stone-900/10 flex items-center justify-center gap-2 disabled:opacity-50 transition cursor-pointer"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin text-stone-300" />
-                Combining your audio clips...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-5 h-5 text-amber-400" />
-                Create & Download Combined Audio ({clipGroups.length} {clipGroups.length === 1 ? 'clip' : 'clips'} • ~
-                {formatTime(totalEstimatedDuration)})
-              </>
-            )}
-          </button>
+          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
+                Step 4: Export Your Combined Medley
+              </h2>
+              <p className="text-xs text-stone-500 mt-1">
+                {hasAnyVideo
+                  ? 'Your project contains video clips. Export as a combined 1080p video (audio clips automatically feature aesthetic title cards with dynamic visualizers) or export as an audio-only MP3.'
+                  : 'Export your combined clips as an audio file (MP3) or generate a 1080p video with aesthetic title cards and animated audio waveforms.'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Option 1: Combined Video (MP4) */}
+              <button
+                type="button"
+                onClick={() => generateMix('mp4')}
+                disabled={isGenerating}
+                className={`py-4 px-6 rounded-2xl font-semibold text-sm shadow-md flex items-center justify-center gap-2.5 transition cursor-pointer disabled:opacity-50 ${
+                  hasAnyVideo
+                    ? 'bg-stone-900 hover:bg-black text-white shadow-stone-900/10'
+                    : 'bg-stone-800 hover:bg-stone-900 text-white shadow-stone-800/10'
+                }`}
+              >
+                {isExportingVideo ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+                    Rendering Combined Video...
+                  </>
+                ) : (
+                  <>
+                    <Film className="w-5 h-5 text-amber-400" />
+                    <span>
+                      Combine & Download Video (MP4)
+                    </span>
+                  </>
+                )}
+              </button>
+
+              {/* Option 2: Combined Audio (MP3) */}
+              <button
+                type="button"
+                onClick={() => generateMix('mp3')}
+                disabled={isGenerating}
+                className={`py-4 px-6 rounded-2xl font-semibold text-sm border transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2.5 ${
+                  hasAnyVideo
+                    ? 'bg-stone-50 hover:bg-stone-100 text-stone-800 border-stone-300'
+                    : 'bg-stone-900 hover:bg-black text-white shadow-md shadow-stone-900/10'
+                }`}
+              >
+                {isExportingAudio ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin text-stone-400" />
+                    Combining Audio Clips...
+                  </>
+                ) : (
+                  <>
+                    <Music className={`w-5 h-5 ${hasAnyVideo ? 'text-stone-600' : 'text-amber-400'}`} />
+                    <span>
+                      Combine & Download Audio (MP3)
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between text-[11px] text-stone-400 px-1">
+              <span>{clipGroups.length} {clipGroups.length === 1 ? 'clip' : 'clips'} • ~{formatTime(totalEstimatedDuration)} total duration</span>
+              <span>1080p H.264 • High-Quality Audio</span>
+            </div>
+          </div>
         </section>
       )}
 
-      {/* In-Browser Audio Player */}
+      {/* In-Browser Video Player (when Video MP4 is exported) */}
+      {masterVideoUrl && (
+        <div
+          ref={generatedVideoSectionRef}
+          id="generated-video-section"
+          className="scroll-mt-8 bg-stone-900 text-white rounded-2xl p-6 mb-10 shadow-lg border border-stone-800 animate-in fade-in"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+              <h3 className="font-bold text-sm text-stone-100">
+                Your Combined Video is Ready!
+              </h3>
+            </div>
+            <a
+              href={masterVideoUrl}
+              download="cozicut_video.mp4"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-xl transition shadow-sm font-sans"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Download Video (MP4)
+            </a>
+          </div>
+
+          <p className="text-xs text-stone-400 mb-4">
+            Preview your rendered 1080p video medley below. Audio segments feature your aesthetic visualizer title card.
+          </p>
+
+          <video
+            controls
+            src={masterVideoUrl}
+            className="w-full max-h-[460px] rounded-xl bg-black shadow-inner"
+          />
+        </div>
+      )}
+
+      {/* In-Browser Audio Player (when Audio MP3 is exported) */}
       {masterAudioUrl && (
         <div
           ref={generatedAudioSectionRef}
           id="generated-audio-section"
           className="scroll-mt-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-emerald-950 mb-10 shadow-sm animate-in fade-in"
         >
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <h3 className="font-bold text-sm text-emerald-900">
@@ -893,7 +1220,7 @@ export default function App() {
             <a
               href={masterAudioUrl}
               download="cozicut_audio.mp3"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-sm"
             >
               <Download className="w-3.5 h-3.5" />
               Download Audio (MP3)

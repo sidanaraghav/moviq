@@ -4,6 +4,7 @@ import com.cozicut.mix.AudioMixService;
 import com.cozicut.mix.ClipSpec;
 import com.cozicut.mix.MixManifest;
 import com.cozicut.mix.MixRequest;
+import com.cozicut.mix.VideoMixService;
 import com.cozicut.trim.TrimmedAudio;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -37,10 +38,12 @@ public class AudioMixController {
     );
 
     private final AudioMixService audioMixService;
+    private final VideoMixService videoMixService;
     private final ObjectMapper objectMapper;
 
-    public AudioMixController(AudioMixService audioMixService) {
+    public AudioMixController(AudioMixService audioMixService, VideoMixService videoMixService) {
         this.audioMixService = audioMixService;
+        this.videoMixService = videoMixService;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -51,26 +54,33 @@ public class AudioMixController {
             @RequestParam(name = "startSeconds", required = false) List<Double> startSeconds,
             @RequestParam(name = "endSeconds", required = false) List<Double> endSeconds,
             @RequestParam(name = "crossfadeSeconds", required = false) Double crossfadeSeconds,
-            @RequestParam(name = "normalizeVolume", required = false) Boolean normalizeVolume
+            @RequestParam(name = "normalizeVolume", required = false) Boolean normalizeVolume,
+            @RequestParam(name = "format", required = false, defaultValue = "mp3") String format
     ) {
         MixRequest mixRequest = validateAndBuildRequest(files, manifestJson, startSeconds, endSeconds, crossfadeSeconds, normalizeVolume);
 
-        TrimmedAudio masterMix = audioMixService.mix(files, mixRequest);
+        boolean isVideo = "mp4".equalsIgnoreCase(format) || "video".equalsIgnoreCase(format);
+        TrimmedAudio masterMix = isVideo
+                ? videoMixService.mixVideo(files, mixRequest)
+                : audioMixService.mix(files, mixRequest);
 
         StreamingResponseBody body = outputStream -> {
             try (masterMix) {
                 Files.copy(masterMix.outputFile(), outputStream);
             } catch (IOException exception) {
-                throw new IllegalStateException("Could not stream master mix audio.", exception);
+                throw new IllegalStateException("Could not stream master mix " + (isVideo ? "video." : "audio."), exception);
             }
         };
 
+        String filename = isVideo ? "cozicut_video.mp4" : "master_mix.mp3";
+        MediaType contentType = isVideo ? MediaType.valueOf("video/mp4") : MediaType.valueOf("audio/mpeg");
+
         ContentDisposition contentDisposition = ContentDisposition.attachment()
-                .filename("master_mix.mp3")
+                .filename(filename)
                 .build();
 
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("audio/mpeg"))
+                .contentType(contentType)
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
                 .body(body);
     }
