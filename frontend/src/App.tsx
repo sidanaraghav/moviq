@@ -3,35 +3,17 @@ import {
   Upload,
   Music,
   Video,
-  ArrowUp,
-  ArrowDown,
-  Trash2,
-  Plus,
-  Scissors,
   Download,
   AlertCircle,
   Loader2,
   Sparkles,
   Volume2,
+  Plus,
+  Play,
+  Pause,
 } from 'lucide-react';
-import { WaveformTrimmer } from './components/WaveformTrimmer';
-
-interface SourceFile {
-  id: string;
-  file: File;
-  name: string;
-  duration: number;
-  isVideo: boolean;
-}
-
-interface ClipItem {
-  id: string;
-  sourceFileId: string;
-  startSeconds: number;
-  endSeconds: number;
-  label?: string;
-  showWaveform: boolean;
-}
+import { ClipCard, SourceFile, ClipItem } from './components/ClipCard';
+import { formatTime } from './utils/timeFormat';
 
 export default function App() {
   const [sourceFiles, setSourceFiles] = useState<SourceFile[]>([]);
@@ -41,6 +23,14 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [masterAudioUrl, setMasterAudioUrl] = useState<string | null>(null);
+
+  // In-browser sequential audition player
+  const [auditionIndex, setAuditionIndex] = useState<number | null>(null);
+  const auditionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const clipsRef = useRef(clips);
+  clipsRef.current = clips;
+  const sourceFilesRef = useRef(sourceFiles);
+  sourceFilesRef.current = sourceFiles;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,16 +52,16 @@ export default function App() {
     setErrorMessage(null);
     newFiles.forEach((file) => {
       const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(file.name);
+      const isVideo =
+        file.type.startsWith('video/') ||
+        /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(file.name);
 
-      // Probe duration in browser
-      const media = document.createElement(isVideo ? 'video' : 'audio');
       const objectUrl = URL.createObjectURL(file);
+      const media = document.createElement(isVideo ? 'video' : 'audio');
       media.src = objectUrl;
 
       media.onloadedmetadata = () => {
         const duration = Math.round((media.duration || 60) * 10) / 10;
-        URL.revokeObjectURL(objectUrl);
 
         const newSource: SourceFile = {
           id: fileId,
@@ -79,31 +69,33 @@ export default function App() {
           name: file.name,
           duration,
           isVideo,
+          objectUrl,
         };
 
         setSourceFiles((prev) => [...prev, newSource]);
 
-        // Automatically create initial clip for this file
+        // Add initial clip for this source
         const initialEnd = Math.min(duration, 30);
         const newClip: ClipItem = {
           id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           sourceFileId: fileId,
           startSeconds: 0,
           endSeconds: initialEnd,
+          label: '',
           showWaveform: false,
+          showVideoPlayer: false,
         };
         setClips((prev) => [...prev, newClip]);
       };
 
       media.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        // Fallback if browser can't decode codec metadata (e.g. MKV)
         const fallbackSource: SourceFile = {
           id: fileId,
           file,
           name: file.name,
           duration: 180,
           isVideo,
+          objectUrl,
         };
         setSourceFiles((prev) => [...prev, fallbackSource]);
         setClips((prev) => [
@@ -113,7 +105,9 @@ export default function App() {
             sourceFileId: fileId,
             startSeconds: 0,
             endSeconds: 30,
+            label: '',
             showWaveform: false,
+            showVideoPlayer: false,
           },
         ]);
       };
@@ -124,9 +118,19 @@ export default function App() {
     setClips((prev) =>
       prev.map((clip) =>
         clip.id === clipId
-          ? { ...clip, startSeconds: Math.max(0, start), endSeconds: Math.max(start + 0.1, end) }
+          ? {
+              ...clip,
+              startSeconds: Math.max(0, start),
+              endSeconds: Math.max(start + 0.1, end),
+            }
           : clip
       )
+    );
+  };
+
+  const updateClipLabel = (clipId: string, label: string) => {
+    setClips((prev) =>
+      prev.map((clip) => (clip.id === clipId ? { ...clip, label } : clip))
     );
   };
 
@@ -138,17 +142,39 @@ export default function App() {
     );
   };
 
-  const addDuplicateCut = (sourceFileId: string) => {
+  const toggleVideoPlayer = (clipId: string) => {
+    setClips((prev) =>
+      prev.map((clip) =>
+        clip.id === clipId
+          ? { ...clip, showVideoPlayer: !clip.showVideoPlayer }
+          : clip
+      )
+    );
+  };
+
+  const addAnotherCut = (sourceFileId: string, insertAfterIndex?: number) => {
     const source = sourceFiles.find((s) => s.id === sourceFileId);
     if (!source) return;
+
+    // Default: pick the next 20 seconds, or 0 to 20
     const newClip: ClipItem = {
       id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       sourceFileId,
       startSeconds: 0,
       endSeconds: Math.min(source.duration, 20),
+      label: '',
       showWaveform: true,
+      showVideoPlayer: false,
     };
-    setClips((prev) => [...prev, newClip]);
+
+    setClips((prev) => {
+      if (typeof insertAfterIndex === 'number' && insertAfterIndex >= 0) {
+        const next = [...prev];
+        next.splice(insertAfterIndex + 1, 0, newClip);
+        return next;
+      }
+      return [...prev, newClip];
+    });
   };
 
   const moveClip = (index: number, direction: 'up' | 'down') => {
@@ -164,17 +190,63 @@ export default function App() {
     setClips((prev) => prev.filter((c) => c.id !== clipId));
   };
 
+  const startAuditionClip = (idx: number) => {
+    const currentClips = clipsRef.current;
+    if (idx < 0 || idx >= currentClips.length) {
+      setAuditionIndex(null);
+      return;
+    }
+    const clip = currentClips[idx];
+    const source = sourceFilesRef.current.find((s) => s.id === clip.sourceFileId);
+    if (!source || !auditionAudioRef.current) {
+      setAuditionIndex(null);
+      return;
+    }
+
+    setAuditionIndex(idx);
+    const audio = auditionAudioRef.current;
+    audio.src = source.objectUrl;
+    audio.currentTime = clip.startSeconds;
+    audio.play().catch((e) => {
+      console.warn('Audition playback notice:', e);
+      setAuditionIndex(null);
+    });
+  };
+
+  const toggleAudition = () => {
+    if (auditionIndex !== null) {
+      if (auditionAudioRef.current) {
+        auditionAudioRef.current.pause();
+      }
+      setAuditionIndex(null);
+    } else {
+      if (clips.length > 0) {
+        startAuditionClip(0);
+      }
+    }
+  };
+
+  const handleAuditionTimeUpdate = () => {
+    if (auditionIndex === null || !auditionAudioRef.current) return;
+    const currentClips = clipsRef.current;
+    const currentClip = currentClips[auditionIndex];
+    if (!currentClip) return;
+
+    if (auditionAudioRef.current.currentTime >= currentClip.endSeconds) {
+      if (auditionIndex + 1 < currentClips.length) {
+        startAuditionClip(auditionIndex + 1);
+      } else {
+        auditionAudioRef.current.pause();
+        setAuditionIndex(null);
+      }
+    }
+  };
+
   const totalEstimatedDuration = clips.reduce((acc, clip, idx) => {
     const duration = clip.endSeconds - clip.startSeconds;
     const overlap = idx > 0 ? crossfadeSeconds : 0;
     return Math.max(0, acc + duration - overlap);
   }, 0);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
 
   const generateMix = async () => {
     if (clips.length === 0) {
@@ -186,9 +258,10 @@ export default function App() {
     setErrorMessage(null);
 
     try {
-      // Build mapping from unique files to fileIndex
       const uniqueSourceIds = Array.from(new Set(clips.map((c) => c.sourceFileId)));
-      const uniqueSources = uniqueSourceIds.map((id) => sourceFiles.find((s) => s.id === id)!);
+      const uniqueSources = uniqueSourceIds.map((id) =>
+        sourceFiles.find((s) => s.id === id)!
+      );
 
       const sourceIdToIndex = new Map<string, number>();
       uniqueSources.forEach((src, idx) => sourceIdToIndex.set(src.id, idx));
@@ -231,7 +304,6 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       setMasterAudioUrl(url);
 
-      // Trigger automatic download
       const a = document.createElement('a');
       a.href = url;
       a.download = 'wedding_master_mix.mp3';
@@ -255,12 +327,14 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-stone-900">CoziCut</h1>
-            <p className="text-sm text-stone-500">Event Performance & Sangeet Medley Builder</p>
+            <p className="text-sm text-stone-500">
+              Event Performance & Sangeet Medley Builder
+            </p>
           </div>
         </div>
       </header>
 
-      {/* Error message */}
+      {/* Error alert */}
       {errorMessage && (
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-900 text-sm">
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -275,9 +349,9 @@ export default function App() {
       <section className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
-            Step 1: Add Songs or Videos
+            Step 1: Add Songs or Rehearsal Videos
           </h2>
-          <span className="text-xs text-stone-500">Supports MP3, WAV, M4A, MP4 Reels, MOV</span>
+          <span className="text-xs text-stone-500">MP3, WAV, M4A, MP4, MOV up to 50MB</span>
         </div>
 
         <div
@@ -298,23 +372,108 @@ export default function App() {
             <Upload className="w-6 h-6" />
           </div>
           <p className="text-sm font-semibold text-stone-800">
-            Click to upload or drag & drop files here
+            Click to upload or drag & drop songs / videos here
           </p>
           <p className="text-xs text-stone-500 mt-1">
-            Reel screen recordings, Spotify/YouTube downloads, or audio tracks (up to 50MB each)
+            Instagram Reel screen recordings, YouTube audio, or dance videos
           </p>
         </div>
+
+        {/* Uploaded media files library */}
+        {sourceFiles.length > 0 && (
+          <div className="mt-4 bg-stone-100/70 rounded-xl p-3 border border-stone-200/80">
+            <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
+              Uploaded Files ({sourceFiles.length})
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {sourceFiles.map((src) => (
+                <div
+                  key={src.id}
+                  className="bg-white border border-stone-200 rounded-lg px-3 py-1.5 flex items-center gap-2 text-xs shadow-2xs"
+                >
+                  {src.isVideo ? (
+                    <Video className="w-3.5 h-3.5 text-stone-500" />
+                  ) : (
+                    <Music className="w-3.5 h-3.5 text-stone-500" />
+                  )}
+                  <span className="font-medium text-stone-800 truncate max-w-[160px]" title={src.name}>
+                    {src.name}
+                  </span>
+                  <span className="text-stone-400 font-mono">({formatTime(src.duration)})</span>
+                  <button
+                    type="button"
+                    onClick={() => addAnotherCut(src.id)}
+                    className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded text-[11px] font-semibold transition"
+                    title="Add another cut from this video/song"
+                  >
+                    <Plus className="w-3 h-3" /> Cut
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* Step 2: Sequence of clips */}
+      {/* Hidden sequential audio audition player */}
+      <audio
+        ref={auditionAudioRef}
+        onTimeUpdate={handleAuditionTimeUpdate}
+        onEnded={() => {
+          if (auditionIndex !== null && auditionIndex + 1 < clips.length) {
+            startAuditionClip(auditionIndex + 1);
+          } else {
+            setAuditionIndex(null);
+          }
+        }}
+        onPause={() => {
+          // If not programmatically transitioning to next clip
+        }}
+      />
+
+      {/* Step 2: Medley Sequence */}
       {clips.length > 0 && (
         <section className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
-              Step 2: Arrange Performance Sequence ({clips.length} {clips.length === 1 ? 'clip' : 'clips'})
-            </h2>
-            <div className="text-xs font-medium text-stone-700 bg-stone-100 px-3 py-1 rounded-full border border-stone-200">
-              Estimated Master Duration: <span className="font-mono font-bold text-stone-900">{formatTime(totalEstimatedDuration)}</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
+                Step 2: Medley Sequence ({clips.length} {clips.length === 1 ? 'cut' : 'cuts'})
+              </h2>
+              <p className="text-xs text-stone-400">
+                Set cut times or trim waveforms, then audition the flow in your browser
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleAudition}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition ${
+                  auditionIndex !== null
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse'
+                    : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-300 shadow-2xs'
+                }`}
+                title="Audition all cuts seamlessly in sequence before creating the final mix"
+              >
+                {auditionIndex !== null ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5" />
+                    Stop Preview (Playing Cut #{auditionIndex + 1} of {clips.length})
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    Audition Medley Preview
+                  </>
+                )}
+              </button>
+
+              <div className="text-xs font-medium text-stone-700 bg-stone-100 px-3 py-1.5 rounded-full border border-stone-200">
+                Total:{' '}
+                <span className="font-mono font-bold text-stone-900">
+                  {formatTime(totalEstimatedDuration)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -322,144 +481,23 @@ export default function App() {
             {clips.map((clip, index) => {
               const source = sourceFiles.find((s) => s.id === clip.sourceFileId);
               if (!source) return null;
-              const clipDuration = Math.max(0, clip.endSeconds - clip.startSeconds);
 
               return (
-                <div
+                <ClipCard
                   key={clip.id}
-                  className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm transition hover:border-stone-300"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-lg bg-stone-100 text-stone-700 font-bold text-xs flex items-center justify-center border border-stone-200 shrink-0">
-                        #{index + 1}
-                      </span>
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        {source.isVideo ? (
-                          <Video className="w-4 h-4 text-stone-500 shrink-0" />
-                        ) : (
-                          <Music className="w-4 h-4 text-stone-500 shrink-0" />
-                        )}
-                        <span className="font-semibold text-stone-900 text-sm truncate max-w-[240px] sm:max-w-xs" title={source.name}>
-                          {source.name}
-                        </span>
-                        {source.isVideo && (
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 border border-stone-200">
-                            Video Audio
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                      <button
-                        type="button"
-                        onClick={() => toggleWaveform(clip.id)}
-                        className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border transition ${
-                          clip.showWaveform
-                            ? 'bg-stone-900 text-white border-stone-900'
-                            : 'bg-stone-50 text-stone-700 hover:bg-stone-100 border-stone-200'
-                        }`}
-                      >
-                        <Scissors className="w-3.5 h-3.5" />
-                        {clip.showWaveform ? 'Hide Waveform' : 'Visual Waveform'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => addDuplicateCut(source.id)}
-                        className="p-1.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-transparent hover:border-stone-200 transition"
-                        title="Add another cut from this track"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => moveClip(index, 'up')}
-                        disabled={index === 0}
-                        className="p-1.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-transparent hover:border-stone-200 disabled:opacity-30 transition"
-                        title="Move Up"
-                      >
-                        <ArrowUp className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => moveClip(index, 'down')}
-                        disabled={index === clips.length - 1}
-                        className="p-1.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-transparent hover:border-stone-200 disabled:opacity-30 transition"
-                        title="Move Down"
-                      >
-                        <ArrowDown className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => removeClip(clip.id)}
-                        className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 transition"
-                        title="Remove Clip"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Manual timestamp inputs */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 pt-3 border-t border-stone-100 text-xs">
-                    <div>
-                      <label className="block text-stone-500 font-medium mb-1">
-                        Start Second
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max={source.duration}
-                        value={clip.startSeconds}
-                        onChange={(e) =>
-                          updateClipRange(clip.id, parseFloat(e.target.value) || 0, clip.endSeconds)
-                        }
-                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-1.5 text-stone-900 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-stone-500 font-medium mb-1">
-                        End Second
-                      </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        max={source.duration}
-                        value={clip.endSeconds}
-                        onChange={(e) =>
-                          updateClipRange(clip.id, clip.startSeconds, parseFloat(e.target.value) || 1)
-                        }
-                        className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-1.5 text-stone-900 font-mono text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
-                      />
-                    </div>
-
-                    <div className="col-span-2 sm:col-span-1 flex flex-col justify-end">
-                      <div className="bg-stone-100/80 rounded-lg px-3 py-2 text-stone-700 flex items-center justify-between border border-stone-200/60">
-                        <span>Snippet:</span>
-                        <span className="font-mono font-bold text-stone-900">{clipDuration.toFixed(1)}s</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Waveform Drawer */}
-                  {clip.showWaveform && (
-                    <WaveformTrimmer
-                      file={source.file}
-                      startSeconds={clip.startSeconds}
-                      endSeconds={clip.endSeconds}
-                      onRangeChange={(start, end) => updateClipRange(clip.id, start, end)}
-                    />
-                  )}
-                </div>
+                  clip={clip}
+                  index={index}
+                  totalClips={clips.length}
+                  source={source}
+                  isAuditioning={auditionIndex === index}
+                  onUpdateRange={updateClipRange}
+                  onUpdateLabel={updateClipLabel}
+                  onToggleWaveform={toggleWaveform}
+                  onToggleVideo={toggleVideoPlayer}
+                  onAddAnotherCut={addAnotherCut}
+                  onMoveClip={moveClip}
+                  onRemoveClip={removeClip}
+                />
               );
             })}
           </div>
@@ -470,17 +508,16 @@ export default function App() {
       {clips.length > 0 && (
         <section className="mb-8 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500 mb-4">
-            Step 3: DJ & Transition Settings
+            Step 3: Transition & Sound Settings
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Crossfade Selector */}
             <div>
               <label className="block text-sm font-medium text-stone-800 mb-1">
                 Transition Between Songs
               </label>
               <p className="text-xs text-stone-500 mb-2">
-                Clean cut is recommended for dance performances so beats aren't blurred.
+                Clean cut is recommended for choreographies so counts are preserved.
               </p>
               <select
                 value={crossfadeSeconds}
@@ -494,7 +531,6 @@ export default function App() {
               </select>
             </div>
 
-            {/* Volume Normalization */}
             <div className="flex flex-col justify-center">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -509,7 +545,7 @@ export default function App() {
                     Auto-Level Volume (EBU R128)
                   </span>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Equalizes quiet Instagram reel audios with loud studio music videos so the sound system doesn't blow out.
+                    Levels quiet Instagram Reels with loud music videos so stage speakers don't deafen anyone.
                   </p>
                 </div>
               </label>
@@ -518,37 +554,40 @@ export default function App() {
         </section>
       )}
 
-      {/* Step 4: Generate Action */}
+      {/* Step 4: Export Master Mix */}
       {clips.length > 0 && (
         <section className="mb-12">
           <button
             type="button"
             onClick={generateMix}
             disabled={isGenerating}
-            className="w-full py-4 px-6 rounded-2xl bg-stone-900 hover:bg-black text-white font-semibold text-base shadow-lg shadow-stone-900/10 flex items-center justify-center gap-2 disabled:opacity-50 transition"
+            className="w-full py-4 px-6 rounded-2xl bg-stone-900 hover:bg-black text-white font-semibold text-base shadow-lg shadow-stone-900/10 flex items-center justify-center gap-2 disabled:opacity-50 transition cursor-pointer"
           >
             {isGenerating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin text-stone-300" />
-                Trimming & Stitching Mix in Spring Boot...
+                Trimming & Stitching Mix with FFmpeg...
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5 text-amber-400" />
-                Generate Master Mix ({clips.length} {clips.length === 1 ? 'clip' : 'clips'} • ~{formatTime(totalEstimatedDuration)})
+                Generate Master Mix ({clips.length} {clips.length === 1 ? 'cut' : 'cuts'} • ~
+                {formatTime(totalEstimatedDuration)})
               </>
             )}
           </button>
         </section>
       )}
 
-      {/* Completed Master Mix Player */}
+      {/* In-Browser Master Mix Player */}
       {masterAudioUrl && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-emerald-950 mb-10 shadow-sm animate-in fade-in">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <h3 className="font-bold text-sm text-emerald-900">Your Master Mix is Ready!</h3>
+              <h3 className="font-bold text-sm text-emerald-900">
+                Your Master Mix is Ready!
+              </h3>
             </div>
             <a
               href={masterAudioUrl}
@@ -561,7 +600,7 @@ export default function App() {
           </div>
 
           <p className="text-xs text-emerald-800 mb-4">
-            Listen to your stitched mix below to verify the cuts before sharing with the venue DJ or choreographers.
+            Listen to your stitched mix below to verify the cuts before sharing with the venue DJ or family.
           </p>
 
           <audio controls src={masterAudioUrl} className="w-full rounded-lg" />
