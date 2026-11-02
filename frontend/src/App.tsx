@@ -540,7 +540,7 @@ export default function App() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Header */}
       <header className="mb-8 pb-6 border-b border-stone-200">
         <div className="flex items-center gap-3 mb-2">
@@ -567,7 +567,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Step 1: Add Media (Option B: Hero Link Import + Compact Drag & Drop together) */}
+      {/* Step 1: Add Media (Spacious Dual Cards: Link Import USP + Drag & Drop Upload) */}
       <section className="mb-8">
         <div className="mb-3">
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
@@ -578,116 +578,127 @@ export default function App() {
           </p>
         </div>
 
-        <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm space-y-5">
-          {/* Top Hero Section: Primary USP - Import from Link */}
-          <form onSubmit={handleImportUrl} className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
-                <Link className="w-3.5 h-3.5 text-amber-500" />
-                Paste Media Link
-              </label>
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                Direct Import
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2.5">
-              <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
-                  <Link className="w-4 h-4" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
+          {/* Card 1: Import from Link (USP) */}
+          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+            <form onSubmit={handleImportUrl} className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
+                    <Link className="w-3.5 h-3.5 text-amber-500" />
+                    Import from Link
+                  </label>
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Online Tracks
+                  </span>
                 </div>
-                <input
-                  type="url"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  placeholder="Paste YouTube, Instagram, Facebook, TikTok, or Spotify link..."
-                  disabled={isImportingUrl}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-stone-900 transition disabled:opacity-60"
-                />
+                <p className="text-xs text-stone-500 mb-3">
+                  Paste a link to any song or video. Audio is extracted automatically.
+                </p>
+
+                <div className="space-y-2.5">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+                      <Link className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="url"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      placeholder="Paste YouTube, Insta, TikTok, Spotify link..."
+                      disabled={isImportingUrl}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-stone-900 transition disabled:opacity-60"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isImportingUrl || !urlInput.trim()}
+                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 text-xs font-semibold bg-stone-900 hover:bg-stone-800 text-white rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {isImportingUrl ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                        Fetching & Extracting Audio...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Import Track
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <button
-                type="submit"
-                disabled={isImportingUrl || !urlInput.trim()}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-semibold bg-stone-900 hover:bg-stone-800 text-white rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
-              >
-                {isImportingUrl ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                    Fetching Audio...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    Import Track
-                  </>
-                )}
-              </button>
-            </div>
 
-            {/* Supported Platforms Badges */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px] text-stone-500">
-              <span className="font-semibold text-stone-700 mr-1">Supported:</span>
-              <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">YouTube</span>
-              <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Instagram</span>
-              <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Facebook</span>
-              <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">TikTok</span>
-              <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Spotify</span>
-              <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">SoundCloud</span>
-            </div>
-
-            {isImportingUrl && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-900 text-xs animate-pulse">
-                <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
-                <span>Extracting audio from link... this usually takes 3 to 10 seconds.</span>
+              {/* Supported Platforms Badges */}
+              <div className="pt-2 border-t border-stone-100">
+                <span className="block text-[11px] font-semibold text-stone-500 mb-1.5">Supported Platforms:</span>
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">YouTube</span>
+                  <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Instagram</span>
+                  <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Facebook</span>
+                  <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">TikTok</span>
+                  <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Spotify</span>
+                  <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">SoundCloud</span>
+                </div>
               </div>
-            )}
-          </form>
 
-          {/* Sleek Visual Divider with 'OR' Badge */}
-          <div className="relative flex items-center justify-center py-1">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-stone-200"></div>
-            </div>
-            <div className="relative bg-white px-3 text-xs font-semibold uppercase tracking-wider text-stone-400">
-              or upload files from your device
-            </div>
+              {isImportingUrl && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-900 text-xs animate-pulse">
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
+                  <span>Downloading & extracting audio... takes 3 to 10 seconds.</span>
+                </div>
+              )}
+            </form>
           </div>
 
-          {/* Bottom Section: Compact Drag & Drop File Upload Strip */}
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-stone-300 hover:border-stone-500 rounded-xl p-4.5 text-center bg-stone-50/60 hover:bg-stone-100/60 cursor-pointer transition flex flex-col sm:flex-row items-center justify-between gap-3"
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.mov,.mkv,.webm"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <div className="flex items-center gap-3 text-left">
-              <div className="w-10 h-10 rounded-full bg-stone-200 text-stone-700 flex items-center justify-center shrink-0">
-                <Upload className="w-5 h-5" />
+          {/* Card 2: Upload Files & Videos from Device */}
+          <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5 text-stone-600" />
+                  Upload Local Files
+                </label>
+                <span className="text-[10px] font-bold text-stone-600 bg-stone-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Up to 500MB
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 mb-3">
+                Drag & drop audio or video files. Videos are automatically converted to audio.
+              </p>
+            </div>
+
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-1 min-h-[160px] border-2 border-dashed border-stone-300 hover:border-stone-500 rounded-xl p-6 text-center bg-stone-50/60 hover:bg-stone-100/60 cursor-pointer transition flex flex-col items-center justify-center gap-2.5 group"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.mov,.mkv,.webm"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <div className="w-12 h-12 rounded-full bg-stone-200 group-hover:bg-stone-300 text-stone-700 flex items-center justify-center transition">
+                <Upload className="w-6 h-6" />
               </div>
               <div>
                 <p className="text-xs sm:text-sm font-bold text-stone-800">
                   Drag & drop audio or video files here
                 </p>
                 <p className="text-[11px] text-stone-500 mt-0.5">
-                  Supports files up to 500MB • Audio is automatically extracted from videos
+                  or <span className="text-stone-900 underline underline-offset-2 font-semibold">browse files</span> from your computer
                 </p>
               </div>
+              <span className="text-[10px] text-stone-400 font-medium">
+                MP3, WAV, AAC, M4A, MP4, MOV, MKV, WebM
+              </span>
             </div>
-
-            <button
-              type="button"
-              className="shrink-0 px-4 py-2 text-xs font-semibold text-stone-800 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg shadow-2xs transition pointer-events-none"
-            >
-              Browse Files
-            </button>
           </div>
         </div>
       </section>
