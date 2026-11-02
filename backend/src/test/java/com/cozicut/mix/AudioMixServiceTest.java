@@ -77,7 +77,7 @@ class AudioMixServiceTest {
         int filterIndex = stitchCommand.indexOf("-filter_complex");
         String filterGraph = stitchCommand.get(filterIndex + 1);
 
-        assertTrue(filterGraph.contains("acrossfade=d=2.0:c1=tri:c2=tri"));
+        assertTrue(filterGraph.contains("acrossfade=d=2.0:c1=qsin:c2=qsin"));
         assertTrue(filterGraph.contains("loudnorm[outa]"));
 
         result.close();

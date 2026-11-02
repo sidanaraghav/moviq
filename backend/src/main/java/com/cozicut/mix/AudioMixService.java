@@ -128,13 +128,13 @@ public class AudioMixService {
             // Crossfaded mix
             String duration = Double.toString(request.crossfadeSeconds());
             StringBuilder filter = new StringBuilder();
-            filter.append("[0:a][1:a]acrossfade=d=").append(duration).append(":c1=tri:c2=tri[a01]");
+            filter.append("[0:a][1:a]acrossfade=d=").append(duration).append(":c1=qsin:c2=qsin[a01]");
             String currentLabel = "a01";
 
             for (int i = 2; i < n; i++) {
                 String nextLabel = "a0" + i;
                 filter.append(";[").append(currentLabel).append("][").append(i).append(":a]acrossfade=d=")
-                        .append(duration).append(":c1=tri:c2=tri[").append(nextLabel).append("]");
+                        .append(duration).append(":c1=qsin:c2=qsin[").append(nextLabel).append("]");
                 currentLabel = nextLabel;
             }
 

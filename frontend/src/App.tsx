@@ -21,9 +21,14 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [masterAudioUrl, setMasterAudioUrl] = useState<string | null>(null);
 
-  // In-browser sequential audition player
+  // In-browser sequential audition player with real-time crossfade support
   const [auditionIndex, setAuditionIndex] = useState<number | null>(null);
-  const auditionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const auditionAudioARef = useRef<HTMLAudioElement | null>(null);
+  const auditionAudioBRef = useRef<HTMLAudioElement | null>(null);
+  const activePlayerRef = useRef<'A' | 'B'>('A');
+  const nextPlayerStartedRef = useRef<boolean>(false);
+  const crossfadeSecondsRef = useRef<number>(crossfadeSeconds);
+  crossfadeSecondsRef.current = crossfadeSeconds;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -264,54 +269,122 @@ export default function App() {
     setClipGroups((prev) => prev.filter((g) => g.id !== clipId));
   };
 
-  // Audition playback controller
+  // Audition playback controller with dual-player crossfading
+  const stopAudition = () => {
+    if (auditionAudioARef.current) {
+      auditionAudioARef.current.pause();
+      auditionAudioARef.current.volume = 1;
+    }
+    if (auditionAudioBRef.current) {
+      auditionAudioBRef.current.pause();
+      auditionAudioBRef.current.volume = 1;
+    }
+    setAuditionIndex(null);
+    activePlayerRef.current = 'A';
+    nextPlayerStartedRef.current = false;
+  };
+
   const startAuditionItem = (idx: number) => {
     const list = allPlayableSectionsRef.current;
     if (idx < 0 || idx >= list.length) {
-      setAuditionIndex(null);
+      stopAudition();
       return;
     }
     const item = list[idx];
-    const audio = auditionAudioRef.current;
-    if (!audio) {
-      setAuditionIndex(null);
+    const activeAudio =
+      activePlayerRef.current === 'A' ? auditionAudioARef.current : auditionAudioBRef.current;
+    const idleAudio =
+      activePlayerRef.current === 'A' ? auditionAudioBRef.current : auditionAudioARef.current;
+
+    if (idleAudio) {
+      idleAudio.pause();
+      idleAudio.volume = 1;
+    }
+
+    if (!activeAudio) {
+      stopAudition();
       return;
     }
 
     setAuditionIndex(idx);
-    audio.src = item.sourceUrl;
-    audio.currentTime = item.startSeconds;
-    audio.play().catch((e) => {
+    nextPlayerStartedRef.current = false;
+    activeAudio.src = item.sourceUrl;
+    activeAudio.currentTime = item.startSeconds;
+    activeAudio.volume = 1;
+    activeAudio.play().catch((e) => {
       console.warn('Audition playback notice:', e);
-      setAuditionIndex(null);
+      stopAudition();
     });
   };
 
   const toggleAudition = () => {
     if (auditionIndex !== null) {
-      if (auditionAudioRef.current) {
-        auditionAudioRef.current.pause();
-      }
-      setAuditionIndex(null);
+      stopAudition();
     } else {
       if (allPlayableSections.length > 0) {
+        activePlayerRef.current = 'A';
         startAuditionItem(0);
       }
     }
   };
 
-  const handleAuditionTimeUpdate = () => {
-    if (auditionIndex === null || !auditionAudioRef.current) return;
+  const handleAuditionTimeUpdate = (player: 'A' | 'B') => {
+    if (activePlayerRef.current !== player || auditionIndex === null) return;
     const list = allPlayableSectionsRef.current;
-    const item = list[auditionIndex];
-    if (!item) return;
+    const currentItem = list[auditionIndex];
+    if (!currentItem) return;
 
-    if (auditionAudioRef.current.currentTime >= item.endSeconds) {
-      if (auditionIndex + 1 < list.length) {
-        startAuditionItem(auditionIndex + 1);
+    const activeAudio =
+      player === 'A' ? auditionAudioARef.current : auditionAudioBRef.current;
+    const nextAudio =
+      player === 'A' ? auditionAudioBRef.current : auditionAudioARef.current;
+    if (!activeAudio) return;
+
+    const curTime = activeAudio.currentTime;
+    const remainingTime = Math.max(0, currentItem.endSeconds - curTime);
+    const nextIndex = auditionIndex + 1;
+    const hasNext = nextIndex < list.length;
+    const nextItem = hasNext ? list[nextIndex] : null;
+
+    const fadeSetting = crossfadeSecondsRef.current;
+    const currentDuration = currentItem.endSeconds - currentItem.startSeconds;
+    const nextDuration = nextItem ? nextItem.endSeconds - nextItem.startSeconds : 0;
+    const maxAllowedFade = Math.min(currentDuration / 2, nextDuration / 2);
+    const effectiveFade = hasNext && fadeSetting > 0 ? Math.min(fadeSetting, maxAllowedFade) : 0;
+
+    // In-flight crossfade blending
+    if (effectiveFade > 0 && hasNext && nextAudio && nextItem) {
+      if (remainingTime <= effectiveFade) {
+        if (!nextPlayerStartedRef.current) {
+          nextAudio.src = nextItem.sourceUrl;
+          nextAudio.currentTime = nextItem.startSeconds;
+          nextAudio.volume = 0;
+          nextAudio.play().catch((e) => console.warn('Next track playback notice:', e));
+          nextPlayerStartedRef.current = true;
+        }
+
+        const progress = Math.max(0, Math.min(1, (effectiveFade - remainingTime) / effectiveFade));
+        // Equal-power quarter-sine crossfade curve
+        activeAudio.volume = Math.cos(progress * Math.PI * 0.5);
+        nextAudio.volume = Math.sin(progress * Math.PI * 0.5);
+      }
+    }
+
+    // Finished current section
+    if (curTime >= currentItem.endSeconds || activeAudio.ended) {
+      activeAudio.pause();
+      activeAudio.volume = 1;
+
+      if (hasNext && nextAudio) {
+        nextAudio.volume = 1;
+        activePlayerRef.current = player === 'A' ? 'B' : 'A';
+        nextPlayerStartedRef.current = false;
+        setAuditionIndex(nextIndex);
+        if (nextAudio.paused) {
+          nextAudio.play().catch((e) => console.warn('Track playback notice:', e));
+        }
       } else {
-        auditionAudioRef.current.pause();
-        setAuditionIndex(null);
+        stopAudition();
       }
     }
   };
@@ -458,15 +531,22 @@ export default function App() {
         </div>
       </section>
 
-      {/* Hidden sequential audio audition player */}
+      {/* Hidden dual-player audio audition system for real-time crossfade preview */}
       <audio
-        ref={auditionAudioRef}
-        onTimeUpdate={handleAuditionTimeUpdate}
+        ref={auditionAudioARef}
+        onTimeUpdate={() => handleAuditionTimeUpdate('A')}
         onEnded={() => {
-          if (auditionIndex !== null && auditionIndex + 1 < allPlayableSections.length) {
-            startAuditionItem(auditionIndex + 1);
-          } else {
-            setAuditionIndex(null);
+          if (activePlayerRef.current === 'A') {
+            handleAuditionTimeUpdate('A');
+          }
+        }}
+      />
+      <audio
+        ref={auditionAudioBRef}
+        onTimeUpdate={() => handleAuditionTimeUpdate('B')}
+        onEnded={() => {
+          if (activePlayerRef.current === 'B') {
+            handleAuditionTimeUpdate('B');
           }
         }}
       />
@@ -566,6 +646,15 @@ export default function App() {
                 <option value={2}>2.0s Smooth Blend (Fade)</option>
                 <option value={3}>3.0s Long Blend (Fade)</option>
               </select>
+              {allPlayableSections.length < 2 ? (
+                <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg p-2.5 mt-2 border border-amber-200">
+                  Transitions blend between 2 or more sections. Add another section or clip to hear them blend together.
+                </p>
+              ) : crossfadeSeconds > 0 ? (
+                <p className="text-[11px] text-emerald-800 bg-emerald-50 rounded-lg p-2.5 mt-2 border border-emerald-200">
+                  Active: Click "Listen to All Clips" above to preview this {crossfadeSeconds}s smooth fade in real-time.
+                </p>
+              ) : null}
             </div>
 
             <div className="flex flex-col justify-center">
