@@ -66,8 +66,8 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
     });
 
     ws.on('error', (err) => {
-      console.warn('Wavesurfer render notice:', err);
-      setLoadError('Waveform preview not supported for this specific container, but snippet preview and time controls work.');
+      console.warn('Audio visualizer notice:', err);
+      setLoadError('Visual timeline is unavailable for this format, but playback and time inputs work normally.');
     });
 
     regions.on('region-updated', (region: any) => {
@@ -174,7 +174,7 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 font-semibold text-stone-900 bg-amber-100 hover:bg-amber-200 text-stone-900 border border-amber-300 rounded-lg shadow-sm transition disabled:opacity-50"
           >
             {isPlayingSnippet ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-            {isPlayingSnippet ? 'Pause Snippet' : '▶ Play Snippet Cut'}
+            {isPlayingSnippet ? 'Pause Selection' : '▶ Play Selection'}
           </button>
 
           <button
@@ -184,7 +184,7 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition disabled:opacity-50"
           >
             {isPlayingFull ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-            {isPlayingFull ? 'Pause Full' : 'Play Full Track'}
+            {isPlayingFull ? 'Pause Full' : 'Play Full File'}
           </button>
 
           <span className="font-mono text-stone-500 pl-1">
@@ -199,10 +199,10 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
             onClick={setStartToPlayhead}
             disabled={!isReady}
             className="inline-flex items-center gap-1 px-2.5 py-1 text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition disabled:opacity-50"
-            title="Set start cut to current audio position"
+            title="Set start point to current position"
           >
             <Crosshair className="w-3 h-3 text-amber-700" />
-            Set Start Here [{formatTime(currentTime)}]
+            Set Start [{formatTime(currentTime)}]
           </button>
 
           <button
@@ -210,10 +210,10 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
             onClick={setEndToPlayhead}
             disabled={!isReady}
             className="inline-flex items-center gap-1 px-2.5 py-1 text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition disabled:opacity-50"
-            title="Set end cut to current audio position"
+            title="Set end point to current position"
           >
             <Crosshair className="w-3 h-3 text-red-600" />
-            Set End Here [{formatTime(currentTime)}]
+            Set End [{formatTime(currentTime)}]
           </button>
 
           <button
@@ -221,14 +221,14 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
             onClick={resetToFull}
             disabled={!isReady}
             className="p-1 text-stone-500 hover:text-stone-800 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition"
-            title="Reset range to full track"
+            title="Reset to full file"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Waveform Canvas */}
+      {/* Visual Timeline Canvas */}
       {loadError ? (
         <div className="p-3 bg-amber-50 text-amber-800 rounded-lg text-xs border border-amber-200">
           {loadError}
@@ -237,13 +237,13 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
         <div className="relative">
           {!isReady && (
             <div className="absolute inset-0 bg-stone-100/80 backdrop-blur-xs flex items-center justify-center rounded-lg text-stone-500 font-medium text-xs z-10">
-              Generating audio waveform...
+              Loading visual timeline...
             </div>
           )}
           <div
             ref={containerRef}
             className="w-full bg-white rounded-lg border border-stone-200 p-2 shadow-inner cursor-pointer min-h-[90px]"
-            title="Click anywhere to jump playhead; drag shaded area or handles to trim snippet"
+            title="Click to jump position, or drag the shaded handles to adjust the selected part"
           />
         </div>
       )}
@@ -254,7 +254,7 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
           Start: <span className="font-semibold text-stone-900">{formatTime(startSeconds)}</span> ({startSeconds.toFixed(1)}s)
         </div>
         <div className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200 font-bold">
-          Snippet Duration: {(endSeconds - startSeconds).toFixed(1)}s
+          Length: {(endSeconds - startSeconds).toFixed(1)}s
         </div>
         <div>
           End: <span className="font-semibold text-stone-900">{formatTime(endSeconds)}</span> ({endSeconds.toFixed(1)}s)

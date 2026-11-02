@@ -175,7 +175,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
             <input
               type="text"
               value={clip.label}
-              placeholder={`Snippet #${index + 1} (e.g. Intro / Chorus)`}
+              placeholder={`Clip #${index + 1} (e.g. Intro or Chorus)`}
               onChange={(e) => onUpdateLabel(clip.id, e.target.value)}
               className="text-sm font-bold text-stone-900 bg-stone-50 hover:bg-stone-100/80 focus:bg-white border border-transparent focus:border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none transition w-48 sm:w-56"
             />
@@ -207,7 +207,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
             }`}
           >
             {isPreviewing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-            {isPreviewing ? 'Pause Cut' : 'Preview Cut'}
+            {isPreviewing ? 'Pause' : 'Play Clip'}
           </button>
 
           {/* Video Toggle if source is video */}
@@ -220,13 +220,13 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                   ? 'bg-stone-800 text-white border-stone-800'
                   : 'text-stone-600 hover:bg-stone-100 border-stone-200'
               }`}
-              title="Preview video snippet"
+              title="Show video player"
             >
               <Film className="w-4 h-4" />
             </button>
           )}
 
-          {/* Waveform Toggle */}
+          {/* Visual Timeline Toggle */}
           <button
             type="button"
             onClick={() => onToggleWaveform(clip.id)}
@@ -235,21 +235,21 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                 ? 'bg-stone-800 text-white border-stone-800'
                 : 'text-stone-700 bg-white hover:bg-stone-100 border-stone-200'
             }`}
-            title="Open interactive visual waveform trimmer"
+            title="Open visual timeline editor to drag and adjust this clip"
           >
             <Scissors className="w-3.5 h-3.5" />
-            {clip.showWaveform ? 'Hide Waveform' : 'Trim Waveform'}
+            {clip.showWaveform ? 'Hide Editor' : 'Trim Visually'}
           </button>
 
-          {/* Add Another Cut from this exact video */}
+          {/* Add Another Section from this exact file */}
           <button
             type="button"
             onClick={() => onAddAnotherCut(source.id, index)}
             className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition"
-            title="Add another cut from this video/song"
+            title="Select another section from this file"
           >
             <Plus className="w-3.5 h-3.5 text-stone-500" />
-            <span>+ Cut</span>
+            <span>+ Section</span>
           </button>
 
           {/* Move Up/Down */}
@@ -258,7 +258,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
             onClick={() => onMoveClip(index, 'up')}
             disabled={index === 0}
             className="p-1.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-transparent hover:border-stone-200 disabled:opacity-25 transition"
-            title="Move Up in Medley"
+            title="Move earlier"
           >
             <ArrowUp className="w-4 h-4" />
           </button>
@@ -268,7 +268,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
             onClick={() => onMoveClip(index, 'down')}
             disabled={index === totalClips - 1}
             className="p-1.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg border border-transparent hover:border-stone-200 disabled:opacity-25 transition"
-            title="Move Down in Medley"
+            title="Move later"
           >
             <ArrowDown className="w-4 h-4" />
           </button>
@@ -278,7 +278,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
             type="button"
             onClick={() => onRemoveClip(clip.id)}
             className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 transition"
-            title="Remove Cut"
+            title="Delete clip"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -289,7 +289,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
       <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-stone-100 text-xs">
         <div>
           <label className="block text-stone-500 font-medium mb-1">
-            Start Time <span className="text-[10px] text-stone-400">(MM:SS or sec)</span>
+            Start <span className="text-[10px] text-stone-400">(e.g. 0:15)</span>
           </label>
           <input
             type="text"
@@ -304,7 +304,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
 
         <div>
           <label className="block text-stone-500 font-medium mb-1">
-            End Time <span className="text-[10px] text-stone-400">(MM:SS or sec)</span>
+            End <span className="text-[10px] text-stone-400">(e.g. 0:45)</span>
           </label>
           <input
             type="text"
@@ -319,7 +319,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
 
         <div>
           <label className="block text-stone-500 font-medium mb-1">
-            Duration <span className="text-[10px] text-stone-400">(seconds)</span>
+            Length <span className="text-[10px] text-stone-400">(seconds)</span>
           </label>
           <div className="relative">
             <input

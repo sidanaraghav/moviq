@@ -306,12 +306,12 @@ export default function App() {
 
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'cozicut_master_mix.mp3';
+      a.download = 'cozicut_audio.mp3';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while generating the mix.');
+      setErrorMessage(err.message || 'An error occurred while creating your audio.');
     } finally {
       setIsGenerating(false);
     }
@@ -328,7 +328,7 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-stone-900">CoziCut</h1>
             <p className="text-sm text-stone-500">
-              Multi-Clip Audio Trimmer & Medley Mixer
+              Trim & Combine Audio and Video Clips
             </p>
           </div>
         </div>
@@ -351,7 +351,7 @@ export default function App() {
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
             Step 1: Add Audio or Video Files
           </h2>
-          <span className="text-xs text-stone-500">MP3, WAV, M4A, MP4, MOV up to 50MB</span>
+          <span className="text-xs text-stone-500">Audio and video files up to 50MB</span>
         </div>
 
         <div
@@ -404,9 +404,9 @@ export default function App() {
                     type="button"
                     onClick={() => addAnotherCut(src.id)}
                     className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded text-[11px] font-semibold transition"
-                    title="Add another cut from this video/song"
+                    title="Select another section from this file"
                   >
-                    <Plus className="w-3 h-3" /> Cut
+                    <Plus className="w-3 h-3" /> Section
                   </button>
                 </div>
               ))}
@@ -440,7 +440,7 @@ export default function App() {
                 Step 2: Clip Sequence ({clips.length} {clips.length === 1 ? 'clip' : 'clips'})
               </h2>
               <p className="text-xs text-stone-400">
-                Set cut times or trim waveforms, then preview the sequence in your browser
+                Choose start and end times for each clip, then preview the sequence
               </p>
             </div>
 
@@ -453,17 +453,17 @@ export default function App() {
                     ? 'bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse'
                     : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-300 shadow-2xs'
                 }`}
-                title="Preview all clips seamlessly in sequence before creating the final mix"
+                title="Listen to all clips played in sequence"
               >
                 {auditionIndex !== null ? (
                   <>
                     <Pause className="w-3.5 h-3.5" />
-                    Stop Preview (Playing Clip #{auditionIndex + 1} of {clips.length})
+                    Stop Playing (Clip #{auditionIndex + 1} of {clips.length})
                   </>
                 ) : (
                   <>
                     <Play className="w-3.5 h-3.5 fill-current" />
-                    Preview Full Sequence
+                    Listen to All Clips
                   </>
                 )}
               </button>
@@ -508,7 +508,7 @@ export default function App() {
       {clips.length > 0 && (
         <section className="mb-8 bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500 mb-4">
-            Step 3: Transition & Sound Settings
+            Step 3: Transitions & Volume
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -517,17 +517,17 @@ export default function App() {
                 Transition Between Clips
               </label>
               <p className="text-xs text-stone-500 mb-2">
-                Clean cut jumps instantly without overlap. Crossfades smoothly blend adjacent clips.
+                Choose whether clips cut directly or smoothly fade into each other.
               </p>
               <select
                 value={crossfadeSeconds}
                 onChange={(e) => setCrossfadeSeconds(parseFloat(e.target.value))}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400"
               >
-                <option value={0}>Clean Cut (0s — Instant Cut)</option>
-                <option value={1}>1.0s Smooth Crossfade</option>
-                <option value={2}>2.0s Smooth Crossfade</option>
-                <option value={3}>3.0s Long Crossfade</option>
+                <option value={0}>Direct Cut (Instant jump, no fade)</option>
+                <option value={1}>1.0s Smooth Blend (Fade)</option>
+                <option value={2}>2.0s Smooth Blend (Fade)</option>
+                <option value={3}>3.0s Long Blend (Fade)</option>
               </select>
             </div>
 
@@ -542,10 +542,10 @@ export default function App() {
                 <div>
                   <span className="text-sm font-medium text-stone-900 flex items-center gap-1.5">
                     <Volume2 className="w-4 h-4 text-stone-600" />
-                    Auto-Level Volume (EBU R128)
+                    Balance Volume Levels
                   </span>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Balances quiet and loud tracks for consistent output volume across clips.
+                    Automatically balances quiet and loud audio so all clips play at a smooth, even volume.
                   </p>
                 </div>
               </label>
@@ -554,7 +554,7 @@ export default function App() {
         </section>
       )}
 
-      {/* Step 4: Export Master Mix */}
+      {/* Step 4: Export Final Audio */}
       {clips.length > 0 && (
         <section className="mb-12">
           <button
@@ -566,12 +566,12 @@ export default function App() {
             {isGenerating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin text-stone-300" />
-                Trimming & Stitching Mix with FFmpeg...
+                Combining your audio clips...
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5 text-amber-400" />
-                Generate Master Mix ({clips.length} {clips.length === 1 ? 'clip' : 'clips'} • ~
+                Create & Download Combined Audio ({clips.length} {clips.length === 1 ? 'clip' : 'clips'} • ~
                 {formatTime(totalEstimatedDuration)})
               </>
             )}
@@ -579,28 +579,28 @@ export default function App() {
         </section>
       )}
 
-      {/* In-Browser Master Mix Player */}
+      {/* In-Browser Audio Player */}
       {masterAudioUrl && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-emerald-950 mb-10 shadow-sm animate-in fade-in">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
               <h3 className="font-bold text-sm text-emerald-900">
-                Your Master Mix is Ready!
+                Your Combined Audio is Ready!
               </h3>
             </div>
             <a
               href={masterAudioUrl}
-              download="cozicut_master_mix.mp3"
+              download="cozicut_audio.mp3"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-sm"
             >
               <Download className="w-3.5 h-3.5" />
-              Download MP3
+              Download Audio (MP3)
             </a>
           </div>
 
           <p className="text-xs text-emerald-800 mb-4">
-            Listen to your stitched mix below to verify the cuts before downloading or sharing.
+            Listen to your combined audio below, or download the audio file directly.
           </p>
 
           <audio controls src={masterAudioUrl} className="w-full rounded-lg" />
