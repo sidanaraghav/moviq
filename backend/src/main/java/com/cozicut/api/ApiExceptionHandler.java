@@ -41,7 +41,7 @@ public class ApiExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> maxUploadSize(MaxUploadSizeExceededException exception) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ApiError("Bad Request", "Audio file exceeds the 50 MB limit."));
+                .body(new ApiError("Bad Request", "Uploaded file or total upload size exceeds the maximum limit (500 MB per file / 1 GB per request)."));
     }
 
     @ExceptionHandler(MediaProcessingTimeoutException.class)

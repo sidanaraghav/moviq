@@ -22,7 +22,7 @@ import java.util.Set;
 @RequestMapping("/api/v1")
 public class AudioTrimController {
 
-    private static final long MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+    private static final long MAX_FILE_SIZE_BYTES = 500L * 1024 * 1024; // 500 MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".wma", ".aiff", ".opus"
     );
@@ -67,7 +67,7 @@ public class AudioTrimController {
         }
 
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new IllegalArgumentException("Audio file exceeds the 50 MB limit.");
+            throw new IllegalArgumentException("Audio file exceeds the 500 MB limit.");
         }
 
         validateAudioType(file);

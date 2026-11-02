@@ -429,7 +429,7 @@ export default function App() {
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
             Step 1: Add Audio or Video Files
           </h2>
-          <span className="text-xs text-stone-500">Audio and video files up to 50MB</span>
+          <span className="text-xs text-stone-500">Audio and video files up to 500MB</span>
         </div>
 
         <div

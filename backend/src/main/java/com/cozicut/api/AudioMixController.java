@@ -28,7 +28,7 @@ import java.util.Set;
 @RequestMapping("/api/v1")
 public class AudioMixController {
 
-    private static final long MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB per file
+    private static final long MAX_FILE_SIZE_BYTES = 500L * 1024 * 1024; // 500 MB per file
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             // Audio formats
             ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma", ".aiff", ".weba",
@@ -93,7 +93,7 @@ public class AudioMixController {
                 throw new IllegalArgumentException("File at index " + i + " is empty.");
             }
             if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-                throw new IllegalArgumentException("File at index " + i + " exceeds the 50 MB limit.");
+                throw new IllegalArgumentException("File at index " + i + " exceeds the 500 MB limit.");
             }
             validateMediaFormat(file, i);
         }
