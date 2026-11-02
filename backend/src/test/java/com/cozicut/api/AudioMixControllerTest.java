@@ -49,7 +49,7 @@ class AudioMixControllerTest {
                 .thenReturn(new TrimmedAudio(tempDir, tempOutput));
 
         MockMultipartFile audioFile = new MockMultipartFile("files", "audio.mp3", "audio/mpeg", FAKE_BYTES);
-        MockMultipartFile videoFile = new MockMultipartFile("files", "dance.mp4", "video/mp4", FAKE_BYTES);
+        MockMultipartFile videoFile = new MockMultipartFile("files", "video.mp4", "video/mp4", FAKE_BYTES);
 
         String manifest = """
                 {

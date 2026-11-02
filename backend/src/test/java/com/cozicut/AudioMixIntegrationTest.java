@@ -35,7 +35,7 @@ class AudioMixIntegrationTest {
     void endToEndCleanCutMixFromAudioAndVideo() throws Exception {
         Path tempDir = Files.createTempDirectory("cozicut-test-mix-media-");
         Path syntheticWav = tempDir.resolve("sine-3s.wav");
-        Path syntheticMp4 = tempDir.resolve("dance-3s.mp4");
+        Path syntheticMp4 = tempDir.resolve("video-3s.mp4");
         Path outputMasterMp3 = tempDir.resolve("master.mp3");
 
         try {
@@ -58,7 +58,7 @@ class AudioMixIntegrationTest {
                     "files", "sine-3s.wav", "audio/wav", Files.readAllBytes(syntheticWav)
             );
             MockMultipartFile mp4File = new MockMultipartFile(
-                    "files", "dance-3s.mp4", "video/mp4", Files.readAllBytes(syntheticMp4)
+                    "files", "video-3s.mp4", "video/mp4", Files.readAllBytes(syntheticMp4)
             );
 
             // 3. Request mix: Clip 1 (from WAV, 0.5s to 2.5s = 2s) + Clip 2 (from MP4, 0.5s to 2.5s = 2s)

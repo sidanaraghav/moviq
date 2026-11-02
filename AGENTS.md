@@ -2,9 +2,7 @@
 
 ## Product
 
-CoziCut helps people prepare event-performance mixes. A user provides source media, selects time ranges, arranges clips, makes small edits, and exports a single audio or video mix.
-
-The initial target is a private, audio-first wedding beta. Build the core workflow before pursuing public-scale features.
+CoziCut is a multi-clip audio and video trimmer and medley mixer. A user provides source media, selects time ranges, arranges clips, previews sequences, and exports a single combined audio mix.
 
 ## Ownership and collaboration
 

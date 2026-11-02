@@ -17,7 +17,7 @@ Milestone 3: Interactive Web UI (Next.js / React with Wavesurfer.js waveform tri
 
 ## Product in one paragraph
 
-CoziCut is an audio-first event-performance mix builder. The eventual product lets people add source media, choose snippets, arrange clips, make small edits, and export a finished mix. The first real-world target is a small private wedding beta.
+CoziCut is a multi-clip audio and video trimmer and medley mixer. The application lets anyone upload audio and video media, choose snippets, arrange clips, preview sequences, and export a finished high-quality audio mix.
 
 ## Completed milestones
 
@@ -26,7 +26,7 @@ CoziCut is an audio-first event-performance mix builder. The eventual product le
 
 ### Milestone 2: Multi-clip audio/video mixing
 `POST /api/v1/audio/mixes` takes multiple uploaded media files (audio or video), trims each snippet to specified timestamps, and stitches them in sequence order into `master_mix.mp3`.
-- **Default:** Clean cut (0s crossfade, preserving dancer choreography counts).
+- **Default:** Clean cut (0s crossfade, instant transition between clips).
 - **Optional:** User-selected crossfade duration (`crossfadeSeconds > 0`).
 - **Optional:** EBU R128 loudness normalization (`normalizeVolume = true`).
 - **Formats:** Accepts both audio (`.mp3`, `.wav`, `.m4a`, etc.) and video (`.mp4`, `.mov`, `.mkv`, etc., with audio extracted).

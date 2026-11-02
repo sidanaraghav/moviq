@@ -26,7 +26,7 @@ class AudioMixServiceTest {
         AudioMixService service = new AudioMixService(executor, "ffmpeg");
 
         MockMultipartFile file1 = new MockMultipartFile("files", "song1.mp3", "audio/mpeg", new byte[]{1, 2});
-        MockMultipartFile file2 = new MockMultipartFile("files", "dance.mp4", "video/mp4", new byte[]{3, 4});
+        MockMultipartFile file2 = new MockMultipartFile("files", "video1.mp4", "video/mp4", new byte[]{3, 4});
 
         MixRequest request = new MixRequest(
                 List.of(

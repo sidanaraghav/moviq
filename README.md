@@ -1,6 +1,6 @@
 # CoziCut
 
-CoziCut is an audio-first event-performance mix builder. It lets a user collect source media (audio or video), select snippets, arrange them into a sequence, make final edits, and export a finished mix.
+CoziCut is a multi-clip audio and video trimmer and medley mixer. It lets a user collect source media (audio or video), select snippets, arrange them into a sequence, preview the audio flow, and export a finished mix.
 
 ## Current stage
 

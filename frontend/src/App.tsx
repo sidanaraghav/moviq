@@ -306,7 +306,7 @@ export default function App() {
 
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'wedding_master_mix.mp3';
+      a.download = 'cozicut_master_mix.mp3';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -328,7 +328,7 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-stone-900">CoziCut</h1>
             <p className="text-sm text-stone-500">
-              Event Performance & Sangeet Medley Builder
+              Multi-Clip Audio Trimmer & Medley Mixer
             </p>
           </div>
         </div>
@@ -349,7 +349,7 @@ export default function App() {
       <section className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
-            Step 1: Add Songs or Rehearsal Videos
+            Step 1: Add Audio or Video Files
           </h2>
           <span className="text-xs text-stone-500">MP3, WAV, M4A, MP4, MOV up to 50MB</span>
         </div>
@@ -372,10 +372,10 @@ export default function App() {
             <Upload className="w-6 h-6" />
           </div>
           <p className="text-sm font-semibold text-stone-800">
-            Click to upload or drag & drop songs / videos here
+            Click to upload or drag & drop audio / video files here
           </p>
           <p className="text-xs text-stone-500 mt-1">
-            Instagram Reel screen recordings, YouTube audio, or dance videos
+            Audio tracks are automatically extracted from videos and combined with audio files
           </p>
         </div>
 
@@ -437,10 +437,10 @@ export default function App() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
             <div>
               <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
-                Step 2: Medley Sequence ({clips.length} {clips.length === 1 ? 'cut' : 'cuts'})
+                Step 2: Clip Sequence ({clips.length} {clips.length === 1 ? 'clip' : 'clips'})
               </h2>
               <p className="text-xs text-stone-400">
-                Set cut times or trim waveforms, then audition the flow in your browser
+                Set cut times or trim waveforms, then preview the sequence in your browser
               </p>
             </div>
 
@@ -453,17 +453,17 @@ export default function App() {
                     ? 'bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse'
                     : 'bg-white hover:bg-stone-50 text-stone-800 border-stone-300 shadow-2xs'
                 }`}
-                title="Audition all cuts seamlessly in sequence before creating the final mix"
+                title="Preview all clips seamlessly in sequence before creating the final mix"
               >
                 {auditionIndex !== null ? (
                   <>
                     <Pause className="w-3.5 h-3.5" />
-                    Stop Preview (Playing Cut #{auditionIndex + 1} of {clips.length})
+                    Stop Preview (Playing Clip #{auditionIndex + 1} of {clips.length})
                   </>
                 ) : (
                   <>
                     <Play className="w-3.5 h-3.5 fill-current" />
-                    Audition Medley Preview
+                    Preview Full Sequence
                   </>
                 )}
               </button>
@@ -514,17 +514,17 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-stone-800 mb-1">
-                Transition Between Songs
+                Transition Between Clips
               </label>
               <p className="text-xs text-stone-500 mb-2">
-                Clean cut is recommended for choreographies so counts are preserved.
+                Clean cut jumps instantly without overlap. Crossfades smoothly blend adjacent clips.
               </p>
               <select
                 value={crossfadeSeconds}
                 onChange={(e) => setCrossfadeSeconds(parseFloat(e.target.value))}
                 className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400"
               >
-                <option value={0}>Clean Cut (0s — Default for Dancers)</option>
+                <option value={0}>Clean Cut (0s — Instant Cut)</option>
                 <option value={1}>1.0s Smooth Crossfade</option>
                 <option value={2}>2.0s Smooth Crossfade</option>
                 <option value={3}>3.0s Long Crossfade</option>
@@ -545,7 +545,7 @@ export default function App() {
                     Auto-Level Volume (EBU R128)
                   </span>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    Levels quiet Instagram Reels with loud music videos so stage speakers don't deafen anyone.
+                    Balances quiet and loud tracks for consistent output volume across clips.
                   </p>
                 </div>
               </label>
@@ -571,7 +571,7 @@ export default function App() {
             ) : (
               <>
                 <Sparkles className="w-5 h-5 text-amber-400" />
-                Generate Master Mix ({clips.length} {clips.length === 1 ? 'cut' : 'cuts'} • ~
+                Generate Master Mix ({clips.length} {clips.length === 1 ? 'clip' : 'clips'} • ~
                 {formatTime(totalEstimatedDuration)})
               </>
             )}
@@ -591,7 +591,7 @@ export default function App() {
             </div>
             <a
               href={masterAudioUrl}
-              download="wedding_master_mix.mp3"
+              download="cozicut_master_mix.mp3"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-sm"
             >
               <Download className="w-3.5 h-3.5" />
@@ -600,7 +600,7 @@ export default function App() {
           </div>
 
           <p className="text-xs text-emerald-800 mb-4">
-            Listen to your stitched mix below to verify the cuts before sharing with the venue DJ or family.
+            Listen to your stitched mix below to verify the cuts before downloading or sharing.
           </p>
 
           <audio controls src={masterAudioUrl} className="w-full rounded-lg" />

@@ -175,7 +175,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
             <input
               type="text"
               value={clip.label}
-              placeholder={`Snippet #${index + 1} (e.g. Groom Solo)`}
+              placeholder={`Snippet #${index + 1} (e.g. Intro / Chorus)`}
               onChange={(e) => onUpdateLabel(clip.id, e.target.value)}
               className="text-sm font-bold text-stone-900 bg-stone-50 hover:bg-stone-100/80 focus:bg-white border border-transparent focus:border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none transition w-48 sm:w-56"
             />
@@ -220,7 +220,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                   ? 'bg-stone-800 text-white border-stone-800'
                   : 'text-stone-600 hover:bg-stone-100 border-stone-200'
               }`}
-              title="Watch video rehearsal preview"
+              title="Preview video snippet"
             >
               <Film className="w-4 h-4" />
             </button>
@@ -338,11 +338,11 @@ export const ClipCard: React.FC<ClipCardProps> = ({
         </div>
       </div>
 
-      {/* Optional In-Browser Video Player for Video Screen Recordings */}
+      {/* Optional In-Browser Video Player */}
       {source.isVideo && clip.showVideoPlayer && (
         <div className="mt-4 bg-stone-900 rounded-xl p-3 flex flex-col items-center">
           <p className="text-[11px] font-medium text-stone-300 mb-2">
-            Rehearsal Video Preview (Audition choreography between {formatTime(clip.startSeconds)} and {formatTime(clip.endSeconds)})
+            Video Preview ({formatTime(clip.startSeconds)} to {formatTime(clip.endSeconds)})
           </p>
           <video
             ref={videoRef}
