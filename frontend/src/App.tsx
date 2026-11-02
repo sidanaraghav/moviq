@@ -15,6 +15,10 @@ import {
 } from 'lucide-react';
 import { ClipGroupCard, ClipGroup } from './components/ClipGroupCard';
 import { SectionItem } from './components/SectionCard';
+import {
+  FullSessionVideoPreview,
+  PlayableSection,
+} from './components/FullSessionVideoPreview';
 import { formatTime } from './utils/timeFormat';
 import {
   saveMediaBlob,
@@ -35,6 +39,7 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [masterAudioUrl, setMasterAudioUrl] = useState<string | null>(null);
   const [masterVideoUrl, setMasterVideoUrl] = useState<string | null>(null);
+  const [isVideoPreviewOpen, setIsVideoPreviewOpen] = useState<boolean>(false);
 
   // Session auto-save state
   const [isSessionLoaded, setIsSessionLoaded] = useState<boolean>(false);
@@ -205,7 +210,7 @@ export default function App() {
   };
 
   // Flattened playable sections list
-  const allPlayableSections = clipGroups.flatMap((group, gIdx) =>
+  const allPlayableSections: PlayableSection[] = clipGroups.flatMap((group, gIdx) =>
     group.sections.map((sec, sIdx) => ({
       clipIndex: gIdx,
       sectionIndex: sIdx,
@@ -214,6 +219,8 @@ export default function App() {
       sourceUrl: group.objectUrl,
       startSeconds: sec.startSeconds,
       endSeconds: sec.endSeconds,
+      isVideo: group.isVideo,
+      title: group.name,
       displayName: `Clip ${gIdx + 1}, Section ${sIdx + 1}${
         sec.label ? ` (${sec.label})` : ''
       }`,
@@ -975,6 +982,19 @@ export default function App() {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                onClick={() => {
+                  stopAudition();
+                  setIsVideoPreviewOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border bg-white hover:bg-stone-50 text-stone-800 border-stone-300 shadow-2xs transition cursor-pointer"
+                title="Watch full video preview with transitions and title cards"
+              >
+                <Film className="w-3.5 h-3.5 text-amber-500" />
+                <span>Watch Video Preview</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={toggleAudition}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition ${
                   auditionIndex !== null
@@ -1103,6 +1123,40 @@ export default function App() {
                   ? 'Your project contains video clips. Export as a combined 1080p video (audio clips automatically feature aesthetic title cards with dynamic visualizers) or export as an audio-only MP3.'
                   : 'Export your combined clips as an audio file (MP3) or generate a 1080p video with aesthetic title cards and animated audio waveforms.'}
               </p>
+            </div>
+
+            {/* Full Session Video Preview Banner (Before Export) */}
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-stone-900 via-stone-900 to-stone-800 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-stone-800 shadow-md">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                  <Film className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-stone-100">
+                      Watch Full Medley Video Preview
+                    </h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
+                      Instant Live Preview
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    Watch all video cuts & audio visualizer title cards stitched in sequence before exporting.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  stopAudition();
+                  setIsVideoPreviewOpen(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs rounded-xl shadow-md transition cursor-pointer self-start sm:self-auto shrink-0"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Preview Full Video Medley</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1234,6 +1288,14 @@ export default function App() {
           <audio controls src={masterAudioUrl} className="w-full rounded-lg" />
         </div>
       )}
+
+      {/* Full Medley Video Preview Modal */}
+      <FullSessionVideoPreview
+        isOpen={isVideoPreviewOpen}
+        onClose={() => setIsVideoPreviewOpen(false)}
+        sections={allPlayableSections}
+        onExportVideo={() => generateMix('mp4')}
+      />
     </div>
   );
 }

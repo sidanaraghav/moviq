@@ -236,6 +236,7 @@ export const ClipGroupCard: React.FC<ClipGroupCardProps> = ({
             file={clipGroup.file}
             sourceDuration={clipGroup.duration}
             sourceObjectUrl={clipGroup.objectUrl}
+            isVideo={clipGroup.isVideo}
             isAuditioning={activeAuditionSectionId === section.id}
             onUpdateRange={(sId, start, end) =>
               onUpdateSectionRange(clipGroup.id, sId, start, end)

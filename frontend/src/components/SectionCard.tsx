@@ -7,6 +7,7 @@ import {
   Trash2,
   Scissors,
   GripVertical,
+  Film,
 } from 'lucide-react';
 import { WaveformTrimmer } from './WaveformTrimmer';
 import { formatTime, parseTime } from '../utils/timeFormat';
@@ -27,6 +28,7 @@ interface SectionCardProps {
   file: File;
   sourceDuration: number;
   sourceObjectUrl: string;
+  isVideo?: boolean;
   isAuditioning?: boolean;
   onUpdateRange: (sectionId: string, start: number, end: number) => void;
   onUpdateLabel: (sectionId: string, label: string) => void;
@@ -44,6 +46,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   file,
   sourceDuration,
   sourceObjectUrl,
+  isVideo = false,
   isAuditioning = false,
   onUpdateRange,
   onUpdateLabel,
@@ -66,13 +69,17 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   // In-browser preview state for this specific section
   const [isPreviewing, setIsPreviewing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Sync inputs whenever parent section props update (e.g. from waveform dragging)
   useEffect(() => {
     setStartInput(formatTime(section.startSeconds));
     setEndInput(formatTime(section.endSeconds));
     setDurationInput((section.endSeconds - section.startSeconds).toFixed(1));
-  }, [section.startSeconds, section.endSeconds]);
+    if (isVideo && videoRef.current && !isPreviewing) {
+      videoRef.current.currentTime = section.startSeconds;
+    }
+  }, [section.startSeconds, section.endSeconds, isVideo, isPreviewing]);
 
   const maxDuration = sourceDuration > 0 ? sourceDuration : 3600;
 
@@ -115,26 +122,26 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   };
 
   const togglePreview = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const media = isVideo ? videoRef.current : audioRef.current;
+    if (!media) return;
 
     if (isPreviewing) {
-      audio.pause();
+      media.pause();
       setIsPreviewing(false);
     } else {
-      audio.currentTime = section.startSeconds;
-      audio.play().catch(() => setIsPreviewing(false));
+      media.currentTime = section.startSeconds;
+      media.play().catch(() => setIsPreviewing(false));
       setIsPreviewing(true);
     }
   };
 
   const handleTimeUpdate = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const media = isVideo ? videoRef.current : audioRef.current;
+    if (!media) return;
 
-    if (audio.currentTime >= section.endSeconds) {
-      audio.pause();
-      audio.currentTime = section.startSeconds;
+    if (media.currentTime >= section.endSeconds) {
+      media.pause();
+      media.currentTime = section.startSeconds;
       setIsPreviewing(false);
     }
   };
@@ -177,14 +184,16 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           : ''
       }`}
     >
-      {/* Hidden audio element for previewing this specific section */}
-      <audio
-        ref={audioRef}
-        src={sourceObjectUrl}
-        onTimeUpdate={handleTimeUpdate}
-        onPause={() => setIsPreviewing(false)}
-        onEnded={() => setIsPreviewing(false)}
-      />
+      {/* Hidden audio element for previewing this specific section (if audio clip) */}
+      {!isVideo && (
+        <audio
+          ref={audioRef}
+          src={sourceObjectUrl}
+          onTimeUpdate={handleTimeUpdate}
+          onPause={() => setIsPreviewing(false)}
+          onEnded={() => setIsPreviewing(false)}
+        />
+      )}
 
       {/* Section Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -230,10 +239,16 @@ export const SectionCard: React.FC<SectionCardProps> = ({
                 ? 'bg-amber-500 text-white border-amber-600'
                 : 'bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200'
             }`}
-            title="Listen to this section"
+            title={isVideo ? "Preview this video cut" : "Listen to this section"}
           >
-            {isPreviewing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-            {isPreviewing ? 'Pause' : 'Play Section'}
+            {isPreviewing ? (
+              <Pause className="w-3.5 h-3.5" />
+            ) : isVideo ? (
+              <Film className="w-3.5 h-3.5 text-stone-600" />
+            ) : (
+              <Play className="w-3.5 h-3.5 fill-current" />
+            )}
+            {isPreviewing ? 'Pause' : isVideo ? 'Preview Cut' : 'Play Section'}
           </button>
 
           {/* Toggle Timeline */}
@@ -349,6 +364,43 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           endSeconds={section.endSeconds}
           onRangeChange={(start, end) => onUpdateRange(section.id, start, end)}
         />
+      )}
+
+      {/* Video Cut Preview Box (shown on video clips) */}
+      {isVideo && (
+        <div className="mt-3.5 bg-stone-950 rounded-xl p-3 border border-stone-800 flex flex-col items-center">
+          <div className="relative w-full max-w-sm aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center shadow-inner">
+            <video
+              ref={videoRef}
+              src={sourceObjectUrl}
+              playsInline
+              onTimeUpdate={handleTimeUpdate}
+              onPause={() => setIsPreviewing(false)}
+              onEnded={() => setIsPreviewing(false)}
+              className="w-full h-full object-contain"
+            />
+            {!isPreviewing && (
+              <button
+                type="button"
+                onClick={togglePreview}
+                className="absolute inset-0 m-auto w-11 h-11 rounded-full bg-stone-900/80 hover:bg-black text-amber-400 hover:text-amber-300 flex items-center justify-center shadow-lg transition backdrop-blur-xs cursor-pointer border border-stone-700 hover:scale-105"
+                title="Play Video Cut"
+              >
+                <Play className="w-5 h-5 fill-current ml-0.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="w-full max-w-sm flex items-center justify-between mt-2 px-1 text-[11px] text-stone-400">
+            <span className="flex items-center gap-1.5 font-medium text-stone-300">
+              <Film className="w-3.5 h-3.5 text-amber-400" />
+              <span>Video Cut: {formatTime(section.startSeconds)} – {formatTime(section.endSeconds)}</span>
+            </span>
+            <span className="font-mono bg-stone-800 px-2 py-0.5 rounded text-stone-300">
+              {(section.endSeconds - section.startSeconds).toFixed(1)}s
+            </span>
+          </div>
+        </div>
       )}
     </div>
   );
