@@ -605,7 +605,7 @@ export default function App() {
                       type="url"
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
-                      placeholder="Paste YouTube, Insta, TikTok, Spotify link..."
+                      placeholder="Paste YouTube, Instagram, Facebook, or Spotify link..."
                       disabled={isImportingUrl}
                       className="w-full pl-10 pr-4 py-2.5 text-sm bg-stone-50 border border-stone-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white text-stone-900 transition disabled:opacity-60"
                     />
@@ -638,7 +638,6 @@ export default function App() {
                   <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">YouTube</span>
                   <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Instagram</span>
                   <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Facebook</span>
-                  <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">TikTok</span>
                   <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Spotify</span>
                   <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">SoundCloud</span>
                 </div>
