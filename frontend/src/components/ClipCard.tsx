@@ -235,21 +235,21 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                 ? 'bg-stone-800 text-white border-stone-800'
                 : 'text-stone-700 bg-white hover:bg-stone-100 border-stone-200'
             }`}
-            title="Open visual timeline editor to drag and adjust this clip"
+            title={clip.showWaveform ? 'Hide visual timeline' : 'Show visual timeline'}
           >
             <Scissors className="w-3.5 h-3.5" />
-            {clip.showWaveform ? 'Hide Editor' : 'Trim Visually'}
+            {clip.showWaveform ? 'Hide Timeline' : 'Visual Editor'}
           </button>
 
-          {/* Add Another Section from this exact file */}
+          {/* Add Another Clip from this exact file */}
           <button
             type="button"
             onClick={() => onAddAnotherCut(source.id, index)}
             className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-stone-700 bg-white hover:bg-stone-100 border border-stone-200 rounded-lg transition"
-            title="Select another section from this file"
+            title="Cut another part from this same audio or video file"
           >
             <Plus className="w-3.5 h-3.5 text-stone-500" />
-            <span>+ Section</span>
+            <span>+ Cut Another Part</span>
           </button>
 
           {/* Move Up/Down */}

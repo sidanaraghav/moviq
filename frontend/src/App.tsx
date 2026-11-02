@@ -74,7 +74,7 @@ export default function App() {
 
         setSourceFiles((prev) => [...prev, newSource]);
 
-        // Add initial clip for this source
+        // Add initial clip for this source (visual trimmer open by default)
         const initialEnd = Math.min(duration, 30);
         const newClip: ClipItem = {
           id: `clip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -82,7 +82,7 @@ export default function App() {
           startSeconds: 0,
           endSeconds: initialEnd,
           label: '',
-          showWaveform: false,
+          showWaveform: true,
           showVideoPlayer: false,
         };
         setClips((prev) => [...prev, newClip]);
@@ -106,7 +106,7 @@ export default function App() {
             startSeconds: 0,
             endSeconds: 30,
             label: '',
-            showWaveform: false,
+            showWaveform: true,
             showVideoPlayer: false,
           },
         ]);
@@ -403,10 +403,10 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => addAnotherCut(src.id)}
-                    className="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded text-[11px] font-semibold transition"
-                    title="Select another section from this file"
+                    className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded text-[11px] font-semibold transition"
+                    title="Add another clip from this file to your sequence"
                   >
-                    <Plus className="w-3 h-3" /> Section
+                    <Plus className="w-3 h-3" /> Add Clip
                   </button>
                 </div>
               ))}
