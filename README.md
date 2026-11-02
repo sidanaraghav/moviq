@@ -1,10 +1,12 @@
 # CoziCut
 
-CoziCut is an audio-first event-performance mix builder. It will let a user collect source media, select snippets, arrange them into a sequence, make final edits, and export a finished mix.
+CoziCut is an audio-first event-performance mix builder. It lets a user collect source media (audio or video), select snippets, arrange them into a sequence, make final edits, and export a finished mix.
 
 ## Current stage
 
-The first implementation milestone is complete: a local Spring Boot service trims a supplied audio file with FFmpeg and returns an MP3 download.
+Milestone 2 is complete:
+- Single-clip trimming: `POST /api/v1/audio/trims`
+- Multi-clip sequence mixing (clean cut or optional crossfade, with audio and video inputs): `POST /api/v1/audio/mixes`
 
 The interaction and component boundaries are documented in [the first-milestone HLD](docs/hld-first-milestone.md). The build checkpoints are in [the implementation plan](docs/first-milestone-plan.md).
 
@@ -25,7 +27,8 @@ docs/        Product decisions and setup notes
 - The user drives product and backend decisions.
 - Build and test locally before deploying.
 - Deliver the simplest useful end-to-end workflow before adding advanced features.
-- Use Codex as a UI collaborator and code reviewer, not as an unreviewed code generator.
+- Clean cuts by default; crossfades and volume normalization are optional.
+- Stateless, on-the-fly execution without permanent media retention or databases.
 
 See [AGENTS.md](AGENTS.md) for the working agreement.
 
@@ -39,9 +42,7 @@ mvn spring-boot:run
 
 Then request `GET http://localhost:8080/api/v1/health`. A successful response is `{"status":"ok"}`.
 
-## Trim audio
-
-With the backend running, submit an audio file and a time range in seconds:
+## Trim single audio
 
 ```bash
 curl --fail --form "file=@/absolute/path/to/source.wav;type=audio/wav" \
@@ -51,4 +52,32 @@ curl --fail --form "file=@/absolute/path/to/source.wav;type=audio/wav" \
   --output trim.mp3
 ```
 
-The endpoint accepts audio uploads up to 50 MB and responds with `audio/mpeg`. Invalid ranges return a structured `400` response. FFmpeg processing failures return `422`; the service times out after 60 seconds.
+## Mix multiple clips (Audio & Video)
+
+Combine multiple song snippets or video screen recordings into a single master MP3.
+
+### Clean cut (Default: 0s crossfade)
+
+```bash
+curl --fail \
+  --form "files=@song1.mp3" \
+  --form "files=@dance_reel.mp4" \
+  --form 'manifest={"crossfadeSeconds": 0.0, "normalizeVolume": false, "clips": [{"fileIndex": 0, "startSeconds": 10.0, "endSeconds": 25.0}, {"fileIndex": 1, "startSeconds": 5.0, "endSeconds": 20.0}]}' \
+  http://localhost:8080/api/v1/audio/mixes \
+  --output master_mix.mp3
+```
+
+### With optional crossfade and volume normalization
+
+```bash
+curl --fail \
+  --form "files=@song1.mp3" \
+  --form "files=@song2.wav" \
+  --form 'manifest={"crossfadeSeconds": 2.0, "normalizeVolume": true, "clips": [{"fileIndex": 0, "startSeconds": 0.0, "endSeconds": 30.0}, {"fileIndex": 1, "startSeconds": 15.0, "endSeconds": 45.0}]}' \
+  http://localhost:8080/api/v1/audio/mixes \
+  --output master_mix.mp3
+```
+
+Supported formats:
+- Audio: `.mp3`, `.wav`, `.m4a`, `.aac`, `.flac`, `.ogg`, `.opus`, `.wma`, `.aiff`, `.weba`
+- Video: `.mp4`, `.mov`, `.mkv`, `.webm`, `.avi`, `.m4v`, `.3gp`, `.flv`, `.wmv` (audio track extracted automatically)
