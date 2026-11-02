@@ -22,8 +22,8 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [masterAudioUrl, setMasterAudioUrl] = useState<string | null>(null);
 
-  // Import mode & URL import state
-  const [importMode, setImportMode] = useState<'upload' | 'url'>('upload');
+  // Import mode & URL import state (USP feature: URL import active by default)
+  const [importMode, setImportMode] = useState<'upload' | 'url'>('url');
   const [urlInput, setUrlInput] = useState<string>('');
   const [isImportingUrl, setIsImportingUrl] = useState<boolean>(false);
 
@@ -568,72 +568,53 @@ export default function App() {
         </div>
       )}
 
-      {/* Step 1: Add Media (Upload Files or Import from Link) */}
+      {/* Step 1: Add Media (USP: Import from Link by default + prominent Upload Files option) */}
       <section className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-          <div>
-            <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
-              Step 1: Add Audio or Video Files
-            </h2>
-            <p className="text-xs text-stone-400">
-              Upload local files or paste a link from YouTube, Instagram, Facebook, TikTok, Spotify, etc.
-            </p>
-          </div>
-
-          {/* Mode Switcher */}
-          <div className="flex items-center p-1 bg-stone-100 rounded-xl border border-stone-200 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setImportMode('upload')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                importMode === 'upload'
-                  ? 'bg-white text-stone-900 shadow-2xs'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              Upload Local File
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportMode('url')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1 cursor-pointer ${
-                importMode === 'url'
-                  ? 'bg-white text-stone-900 shadow-2xs'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              <Link className="w-3 h-3 text-amber-600" />
-              Import from Link
-            </button>
-          </div>
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold tracking-wider uppercase text-stone-500">
+            Step 1: Add Media to Edit
+          </h2>
+          <p className="text-xs text-stone-400 mt-0.5">
+            Add audio tracks by pasting links or uploading media files directly from your computer.
+          </p>
         </div>
 
-        {importMode === 'upload' ? (
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-stone-300 hover:border-stone-500 rounded-2xl p-8 text-center bg-white hover:bg-stone-50/50 cursor-pointer transition shadow-sm"
+        {/* Prominent High-Visibility Mode Tabs */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1.5 bg-stone-100 rounded-2xl mb-4 border border-stone-200">
+          <button
+            type="button"
+            onClick={() => setImportMode('url')}
+            className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
+              importMode === 'url'
+                ? 'bg-white text-stone-900 shadow-sm border border-stone-200/90 ring-1 ring-stone-900/5'
+                : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50/60'
+            }`}
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.mov,.mkv,.webm"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <div className="w-12 h-12 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center mx-auto mb-3">
-              <Upload className="w-6 h-6" />
-            </div>
-            <p className="text-sm font-semibold text-stone-800">
-              Click to upload or drag & drop audio / video files here
-            </p>
-            <p className="text-xs text-stone-500 mt-1">
-              Supports files up to 500MB • Audio tracks are automatically extracted from videos
-            </p>
-          </div>
-        ) : (
+            <Link className="w-4 h-4 text-amber-500 shrink-0" />
+            <span className="truncate">Paste Link <span className="font-normal text-stone-400">(YouTube, Insta, Spotify...)</span></span>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] uppercase tracking-wider bg-amber-100 text-amber-800 rounded font-black">
+              Popular
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setImportMode('upload')}
+            className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
+              importMode === 'upload'
+                ? 'bg-white text-stone-900 shadow-sm border border-stone-200/90 ring-1 ring-stone-900/5'
+                : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50/60'
+            }`}
+          >
+            <Upload className="w-4 h-4 text-stone-700 shrink-0" />
+            <span className="truncate">Upload Local Files <span className="font-normal text-stone-400">(Audio / Video)</span></span>
+            <span className="shrink-0 px-1.5 py-0.5 text-[9px] bg-stone-200 text-stone-700 rounded font-semibold">
+              Up to 500MB
+            </span>
+          </button>
+        </div>
+
+        {importMode === 'url' ? (
           <div className="bg-white border border-stone-200 rounded-2xl p-6 shadow-sm">
             <form onSubmit={handleImportUrl} className="space-y-4">
               <div>
@@ -657,7 +638,7 @@ export default function App() {
                   <button
                     type="submit"
                     disabled={isImportingUrl || !urlInput.trim()}
-                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold bg-stone-900 hover:bg-stone-800 text-white rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 text-xs font-semibold bg-stone-900 hover:bg-stone-800 text-white rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer shrink-0"
                   >
                     {isImportingUrl ? (
                       <>
@@ -676,7 +657,7 @@ export default function App() {
 
               {/* Supported Platforms Badges */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] text-stone-500">
-                <span className="font-semibold text-stone-700 mr-1">Supported Platforms:</span>
+                <span className="font-semibold text-stone-700 mr-1">Supported:</span>
                 <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">YouTube</span>
                 <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Instagram</span>
                 <span className="bg-stone-100 border border-stone-200 px-2 py-0.5 rounded-md font-medium text-stone-700">Facebook</span>
@@ -691,7 +672,56 @@ export default function App() {
                   <span>Extracting audio from link... this usually takes 3 to 10 seconds.</span>
                 </div>
               )}
+
+              <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
+                <span>Have a file stored on your computer or phone?</span>
+                <button
+                  type="button"
+                  onClick={() => setImportMode('upload')}
+                  className="text-stone-700 hover:text-stone-900 font-semibold underline underline-offset-2 cursor-pointer transition"
+                >
+                  Switch to Upload Files & Videos →
+                </button>
+              </div>
             </form>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-stone-300 hover:border-stone-500 rounded-2xl p-8 text-center bg-white hover:bg-stone-50/50 cursor-pointer transition shadow-sm"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.mp4,.mov,.mkv,.webm"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <div className="w-12 h-12 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center mx-auto mb-3">
+                <Upload className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-semibold text-stone-800">
+                Click to upload or drag & drop audio / video files here
+              </p>
+              <p className="text-xs text-stone-500 mt-1">
+                Supports audio and video files up to 500MB • Audio tracks are automatically extracted from videos
+              </p>
+            </div>
+
+            <div className="text-center text-xs text-stone-400">
+              Want to use a song or audio from a link instead?{' '}
+              <button
+                type="button"
+                onClick={() => setImportMode('url')}
+                className="text-stone-700 hover:text-stone-900 font-semibold underline underline-offset-2 cursor-pointer transition"
+              >
+                Paste a YouTube, Insta, or Spotify link →
+              </button>
+            </div>
           </div>
         )}
       </section>
