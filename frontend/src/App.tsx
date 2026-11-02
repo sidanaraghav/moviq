@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Upload,
   Download,
@@ -31,6 +31,16 @@ export default function App() {
   crossfadeSecondsRef.current = crossfadeSeconds;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const generatedAudioSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (masterAudioUrl && generatedAudioSectionRef.current) {
+      generatedAudioSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [masterAudioUrl]);
 
   // Flattened playable sections list
   const allPlayableSections = clipGroups.flatMap((group, gIdx) =>
@@ -413,6 +423,7 @@ export default function App() {
 
     setIsGenerating(true);
     setErrorMessage(null);
+    setMasterAudioUrl(null);
 
     try {
       const manifestClips = clipGroups.flatMap((group, groupIndex) =>
@@ -707,7 +718,11 @@ export default function App() {
 
       {/* In-Browser Audio Player */}
       {masterAudioUrl && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-emerald-950 mb-10 shadow-sm animate-in fade-in">
+        <div
+          ref={generatedAudioSectionRef}
+          id="generated-audio-section"
+          className="scroll-mt-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6 text-emerald-950 mb-10 shadow-sm animate-in fade-in"
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
