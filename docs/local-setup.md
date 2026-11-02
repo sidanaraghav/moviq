@@ -53,6 +53,16 @@ Expected response:
 {"status":"ok"}
 ```
 
+## Run the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000` in your browser. The frontend Vite server automatically proxies `/api` requests to the Spring Boot backend at `http://localhost:8080`.
+
 ## Verify the trim workflow
 
 In a second terminal while the backend is running, submit a local audio file:

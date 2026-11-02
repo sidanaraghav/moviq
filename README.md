@@ -42,6 +42,17 @@ mvn spring-boot:run
 
 Then request `GET http://localhost:8080/api/v1/health`. A successful response is `{"status":"ok"}`.
 
+## Run the frontend
+
+From `frontend/`:
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000` in your browser.
+
 ## Trim single audio
 
 ```bash
