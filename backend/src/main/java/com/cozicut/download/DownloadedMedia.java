@@ -10,11 +10,19 @@ public final class DownloadedMedia implements AutoCloseable {
     private final Path workspace;
     private final Path outputFile;
     private final String title;
+    private final String contentType;
+    private final boolean isVideo;
 
     public DownloadedMedia(Path workspace, Path outputFile, String title) {
+        this(workspace, outputFile, title, "audio/mpeg", false);
+    }
+
+    public DownloadedMedia(Path workspace, Path outputFile, String title, String contentType, boolean isVideo) {
         this.workspace = workspace;
         this.outputFile = outputFile;
         this.title = title;
+        this.contentType = contentType != null ? contentType : (isVideo ? "video/mp4" : "audio/mpeg");
+        this.isVideo = isVideo;
     }
 
     public Path outputFile() {
@@ -23,6 +31,14 @@ public final class DownloadedMedia implements AutoCloseable {
 
     public String title() {
         return title;
+    }
+
+    public String contentType() {
+        return contentType;
+    }
+
+    public boolean isVideo() {
+        return isVideo;
     }
 
     @Override

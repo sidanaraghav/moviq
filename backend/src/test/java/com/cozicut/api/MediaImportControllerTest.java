@@ -63,6 +63,33 @@ class MediaImportControllerTest {
     }
 
     @Test
+    @DisplayName("Valid video URL import request returns 200 OK, video/mp4 header, X-Media-Is-Video: true and streams MP4")
+    void validVideoUrlImportReturnsOkAndStreamsVideo() throws Exception {
+        Path tempDir = Files.createTempDirectory("test-download-video-");
+        Path tempMp4 = tempDir.resolve("video.mp4");
+        byte[] expectedContent = "mock-streamed-video".getBytes();
+        Files.write(tempMp4, expectedContent);
+
+        when(downloadService.download("https://www.youtube.com/watch?v=sample-video"))
+                .thenReturn(new DownloadedMedia(tempDir, tempMp4, "Sample Video Title", "video/mp4", true));
+
+        MvcResult result = mockMvc.perform(post("/api/v1/media/import-url")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\": \"https://www.youtube.com/watch?v=sample-video\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", is("video/mp4")))
+                .andExpect(header().string("Content-Disposition", containsString("Sample Video Title.mp4")))
+                .andExpect(header().string("X-Media-Is-Video", is("true")))
+                .andExpect(header().exists("X-Media-Title"));
+
+        assertArrayEquals(expectedContent, result.getResponse().getContentAsByteArray());
+    }
+
+    @Test
     @DisplayName("Empty URL returns 400 Bad Request")
     void emptyUrlReturnsBadRequest() throws Exception {
         mockMvc.perform(post("/api/v1/media/import-url")

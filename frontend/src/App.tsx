@@ -267,7 +267,7 @@ export default function App() {
       });
 
       if (!response.ok) {
-        let errMessage = 'Failed to extract audio from the provided link.';
+        let errMessage = 'Failed to download media from the provided link.';
         try {
           const json = await response.json();
           errMessage = json.message || errMessage;
@@ -278,7 +278,7 @@ export default function App() {
       }
 
       const encodedTitle = response.headers.get('X-Media-Title');
-      let title = 'Imported Audio';
+      let title = 'Imported Media';
       if (encodedTitle) {
         try {
           title = decodeURIComponent(encodedTitle.replace(/\+/g, ' '));
@@ -287,13 +287,21 @@ export default function App() {
         }
       }
 
+      const contentType = response.headers.get('Content-Type') || '';
+      const isVideoHeader = response.headers.get('X-Media-Is-Video') === 'true';
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const isVideo = isVideoHeader || contentType.startsWith('video/') || disposition.includes('.mp4');
+
+      const finalType = isVideo ? 'video/mp4' : 'audio/mpeg';
+      const extension = isVideo ? 'mp4' : 'mp3';
+
       const blob = await response.blob();
-      const file = new File([blob], `${title}.mp3`, { type: 'audio/mpeg' });
+      const file = new File([blob], `${title}.${extension}`, { type: finalType });
 
       processNewFiles([file]);
       setUrlInput('');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Could not import audio from link.');
+      setErrorMessage(err.message || 'Could not import media from link.');
     } finally {
       setIsImportingUrl(false);
     }
@@ -837,7 +845,7 @@ export default function App() {
                   </span>
                 </div>
                 <p className="text-xs text-stone-500 mb-3">
-                  Paste a link to any song or video. Audio is extracted automatically.
+                  Paste a link to any song or video. Videos are imported with visuals, and songs are imported as high-quality audio.
                 </p>
 
                 <div className="space-y-2.5">
@@ -863,7 +871,7 @@ export default function App() {
                     {isImportingUrl ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                        Fetching & Extracting Audio...
+                        Fetching & Importing Media...
                       </>
                     ) : (
                       <>
@@ -890,7 +898,7 @@ export default function App() {
               {isImportingUrl && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-900 text-xs animate-pulse">
                   <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" />
-                  <span>Downloading & extracting audio... takes 3 to 10 seconds.</span>
+                  <span>Downloading & importing media... takes a few seconds.</span>
                 </div>
               )}
             </form>

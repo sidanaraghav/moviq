@@ -25,7 +25,8 @@ import java.nio.file.Files;
         origins = "*",
         exposedHeaders = {
                 HttpHeaders.CONTENT_DISPOSITION,
-                "X-Media-Title"
+                "X-Media-Title",
+                "X-Media-Is-Video"
         }
 )
 public class MediaImportController {
@@ -49,7 +50,9 @@ public class MediaImportController {
         DownloadedMedia downloaded = downloadService.download(url);
 
         String title = downloaded.title();
-        String safeFilename = title.replaceAll("[^a-zA-Z0-9._ -]", "_") + ".mp3";
+        boolean isVideo = downloaded.isVideo();
+        String extension = isVideo ? ".mp4" : ".mp3";
+        String safeFilename = title.replaceAll("[^a-zA-Z0-9._ -]", "_") + extension;
 
         ContentDisposition contentDisposition = ContentDisposition.attachment()
                 .filename(safeFilename, StandardCharsets.UTF_8)
@@ -59,14 +62,15 @@ public class MediaImportController {
             try (downloaded) {
                 Files.copy(downloaded.outputFile(), outputStream);
             } catch (IOException exception) {
-                throw new IllegalStateException("Could not stream imported audio.", exception);
+                throw new IllegalStateException("Could not stream imported media.", exception);
             }
         };
 
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("audio/mpeg"))
+                .contentType(MediaType.valueOf(downloaded.contentType()))
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
                 .header("X-Media-Title", URLEncoder.encode(title, StandardCharsets.UTF_8))
+                .header("X-Media-Is-Video", String.valueOf(isVideo))
                 .body(responseBody);
     }
 }
