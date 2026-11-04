@@ -17,8 +17,8 @@ class TitleCardRendererTest {
     private final TitleCardRenderer renderer = new TitleCardRenderer();
 
     @Test
-    @DisplayName("Generates 1920x1080 aesthetic title card PNG")
-    void generatesValid1080pPng() throws Exception {
+    @DisplayName("Generates 1280x720 aesthetic title card PNG")
+    void generatesValid720pPng() throws Exception {
         Path tempDir = Files.createTempDirectory("title-card-test-");
         Path outputPath = tempDir.resolve("test_card.png");
 
@@ -29,8 +29,8 @@ class TitleCardRendererTest {
             assertTrue(Files.size(outputPath) > 1000);
 
             BufferedImage img = ImageIO.read(outputPath.toFile());
-            assertEquals(1920, img.getWidth());
-            assertEquals(1080, img.getHeight());
+            assertEquals(1280, img.getWidth());
+            assertEquals(720, img.getHeight());
         } finally {
             Files.deleteIfExists(outputPath);
             Files.deleteIfExists(tempDir);

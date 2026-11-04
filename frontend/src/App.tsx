@@ -20,6 +20,7 @@ import {
   PlayableSection,
 } from './components/FullSessionVideoPreview';
 import { formatTime } from './utils/timeFormat';
+import { BRAND } from './config/brand';
 import {
   saveMediaBlob,
   getMediaBlob,
@@ -777,9 +778,9 @@ export default function App() {
               ✂️
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-stone-900">CoziCut</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-stone-900">{BRAND.headerLogo}</h1>
               <p className="text-sm text-stone-500">
-                Trim & Combine Audio and Video Clips
+                {BRAND.tagline}
               </p>
             </div>
           </div>
@@ -1223,7 +1224,7 @@ export default function App() {
 
             <div className="mt-3 flex items-center justify-between text-[11px] text-stone-400 px-1">
               <span>{clipGroups.length} {clipGroups.length === 1 ? 'clip' : 'clips'} • ~{formatTime(totalEstimatedDuration)} total duration</span>
-              <span>1080p H.264 • High-Quality Audio</span>
+              <span>720p HD H.264 • High-Quality Audio</span>
             </div>
           </div>
         </section>
@@ -1245,7 +1246,7 @@ export default function App() {
             </div>
             <a
               href={masterVideoUrl}
-              download="cozicut_video.mp4"
+              download={BRAND.exportVideoName}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-stone-950 rounded-xl transition shadow-sm font-sans"
             >
               <Download className="w-3.5 h-3.5" />
@@ -1254,7 +1255,7 @@ export default function App() {
           </div>
 
           <p className="text-xs text-stone-400 mb-4">
-            Preview your rendered 1080p video medley below. Audio segments feature your aesthetic visualizer title card.
+            Preview your rendered 720p HD video medley below. Audio segments feature your aesthetic visualizer title card.
           </p>
 
           <video
@@ -1281,7 +1282,7 @@ export default function App() {
             </div>
             <a
               href={masterAudioUrl}
-              download="cozicut_audio.mp3"
+              download={BRAND.exportAudioName}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-sm"
             >
               <Download className="w-3.5 h-3.5" />

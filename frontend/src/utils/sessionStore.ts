@@ -1,9 +1,10 @@
-// sessionStore.ts - LocalStorage + IndexedDB persistence for CoziCut
+// sessionStore.ts - LocalStorage + IndexedDB persistence for Moviq
+import { BRAND } from '../config/brand';
 
-const DB_NAME = 'CozicutMediaDB';
+const DB_NAME = BRAND.dbName;
 const DB_VERSION = 1;
 const STORE_NAME = 'media_blobs';
-const SESSION_STORAGE_KEY = 'cozicut_session_v1';
+const SESSION_STORAGE_KEY = BRAND.sessionKey;
 
 export interface SavedSectionItem {
   id: string;
@@ -139,7 +140,13 @@ export function saveSessionMetadata(session: SavedSession): void {
 // Load session metadata from LocalStorage
 export function loadSessionMetadata(): SavedSession | null {
   try {
-    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    let raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw && BRAND.legacySessionKeys) {
+      for (const legacyKey of BRAND.legacySessionKeys) {
+        raw = localStorage.getItem(legacyKey);
+        if (raw) break;
+      }
+    }
     if (!raw) return null;
     return JSON.parse(raw) as SavedSession;
   } catch (err) {
@@ -152,6 +159,11 @@ export function loadSessionMetadata(): SavedSession | null {
 export async function clearCompleteSession(): Promise<void> {
   try {
     localStorage.removeItem(SESSION_STORAGE_KEY);
+    if (BRAND.legacySessionKeys) {
+      for (const legacyKey of BRAND.legacySessionKeys) {
+        localStorage.removeItem(legacyKey);
+      }
+    }
   } catch (err) {
     console.warn('Could not remove session from localStorage:', err);
   }

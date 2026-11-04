@@ -39,11 +39,20 @@ public class AudioMixController {
 
     private final AudioMixService audioMixService;
     private final VideoMixService videoMixService;
+    private final String videoExportFilename;
+    private final String audioExportFilename;
     private final ObjectMapper objectMapper;
 
-    public AudioMixController(AudioMixService audioMixService, VideoMixService videoMixService) {
+    public AudioMixController(
+            AudioMixService audioMixService,
+            VideoMixService videoMixService,
+            @org.springframework.beans.factory.annotation.Value("${app.brand.video-export-filename:moviq_video.mp4}") String videoExportFilename,
+            @org.springframework.beans.factory.annotation.Value("${app.brand.audio-export-filename:moviq_audio.mp3}") String audioExportFilename
+    ) {
         this.audioMixService = audioMixService;
         this.videoMixService = videoMixService;
+        this.videoExportFilename = videoExportFilename;
+        this.audioExportFilename = audioExportFilename;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -72,7 +81,7 @@ public class AudioMixController {
             }
         };
 
-        String filename = isVideo ? "cozicut_video.mp4" : "master_mix.mp3";
+        String filename = isVideo ? videoExportFilename : audioExportFilename;
         MediaType contentType = isVideo ? MediaType.valueOf("video/mp4") : MediaType.valueOf("audio/mpeg");
 
         ContentDisposition contentDisposition = ContentDisposition.attachment()

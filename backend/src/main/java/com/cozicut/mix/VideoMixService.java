@@ -81,13 +81,13 @@ public class VideoMixService {
                 Path clipOutput = workspace.resolve("clip_" + i + ".mp4");
 
                 if (isVideo) {
-                    // Normalize video stream: scale with aspect preservation into 1920x1080 canvas
+                    // Normalize video stream: scale with aspect preservation into 1280x720 canvas
                     List<String> cmd = List.of(
                             ffmpegExecutable, "-y",
                             "-ss", Double.toString(clip.startSeconds()),
                             "-to", Double.toString(clip.endSeconds()),
                             "-i", source.toString(),
-                            "-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30",
+                            "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30",
                             "-c:v", "libx264",
                             "-pix_fmt", "yuv420p",
                             "-r", "30",
@@ -111,7 +111,7 @@ public class VideoMixService {
                             "-i", source.toString(),
                             "-loop", "1",
                             "-i", cardImg.toString(),
-                            "-filter_complex", "[0:a]showwaves=s=1000x140:mode=cline:colors=0xf59e0b|0xfbbf24[waves];[1:v][waves]overlay=460:635:shortest=1[outv]",
+                            "-filter_complex", "[0:a]showwaves=s=680x96:mode=cline:colors=0xf59e0b|0xfbbf24[waves];[1:v][waves]overlay=300:436:shortest=1[outv]",
                             "-map", "[outv]",
                             "-map", "0:a",
                             "-c:v", "libx264",

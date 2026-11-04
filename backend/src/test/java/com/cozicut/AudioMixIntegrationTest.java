@@ -81,7 +81,7 @@ class AudioMixIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(request().asyncStarted())
                     .andExpect(header().string("Content-Type", "audio/mpeg"))
-                    .andExpect(header().string("Content-Disposition", "attachment; filename=\"master_mix.mp3\""))
+                    .andExpect(header().string("Content-Disposition", "attachment; filename=\"moviq_audio.mp3\""))
                     .andReturn();
 
             mockMvc.perform(asyncDispatch(mvcResult))

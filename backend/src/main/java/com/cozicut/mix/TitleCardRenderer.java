@@ -1,5 +1,6 @@
 package com.cozicut.mix;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
@@ -11,16 +12,31 @@ import java.nio.file.Path;
 @Component
 public class TitleCardRenderer {
 
-    public static final int WIDTH = 1920;
-    public static final int HEIGHT = 1080;
+    public static final int WIDTH = 1280;
+    public static final int HEIGHT = 720;
+
+    private final String brandName;
+    private final String defaultSubtitle;
 
     static {
         System.setProperty("java.awt.headless", "true");
     }
 
+    public TitleCardRenderer(
+            @Value("${app.brand.name:Moviq}") String brandName,
+            @Value("${app.brand.subtitle:Moviq Audio Track}") String defaultSubtitle
+    ) {
+        this.brandName = brandName;
+        this.defaultSubtitle = defaultSubtitle;
+    }
+
+    public TitleCardRenderer() {
+        this("Moviq", "Moviq Audio Track");
+    }
+
     public void renderTitleCard(String rawTitle, String subtitle, Path outputPath) throws IOException {
         String cleanTitle = formatTitle(rawTitle);
-        String cleanSubtitle = (subtitle != null && !subtitle.isBlank()) ? subtitle : "CoziCut Audio Track";
+        String cleanSubtitle = (subtitle != null && !subtitle.isBlank()) ? subtitle : defaultSubtitle;
 
         BufferedImage img = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
@@ -39,35 +55,35 @@ public class TitleCardRenderer {
             g.fillRect(0, 0, WIDTH, HEIGHT);
 
             // Subtle ambient warm glow in center
-            g.setColor(new Color(245, 158, 11, 22));
-            g.fillOval(WIDTH / 2 - 450, HEIGHT / 2 - 320, 900, 640);
+            g.setColor(new Color(245, 158, 11, 24));
+            g.fillOval(WIDTH / 2 - 300, HEIGHT / 2 - 220, 600, 440);
 
             // 2. Translucent Glass Card in Center
-            int cardW = 1200;
-            int cardH = 620;
+            int cardW = 860;
+            int cardH = 440;
             int cardX = (WIDTH - cardW) / 2;
             int cardY = (HEIGHT - cardH) / 2;
 
             g.setColor(new Color(30, 41, 59, 215));
-            g.fillRoundRect(cardX, cardY, cardW, cardH, 44, 44);
+            g.fillRoundRect(cardX, cardY, cardW, cardH, 32, 32);
 
             // Card border
             g.setColor(new Color(71, 85, 105, 140));
-            g.setStroke(new BasicStroke(2.5f));
-            g.drawRoundRect(cardX, cardY, cardW, cardH, 44, 44);
+            g.setStroke(new BasicStroke(2.0f));
+            g.drawRoundRect(cardX, cardY, cardW, cardH, 32, 32);
 
             // 3. Audio Pill Badge
-            int badgeW = 220;
-            int badgeH = 44;
+            int badgeW = 160;
+            int badgeH = 34;
             int badgeX = (WIDTH - badgeW) / 2;
-            int badgeY = cardY + 55;
+            int badgeY = cardY + 36;
             g.setColor(new Color(245, 158, 11, 35));
-            g.fillRoundRect(badgeX, badgeY, badgeW, badgeH, 22, 22);
+            g.fillRoundRect(badgeX, badgeY, badgeW, badgeH, 17, 17);
             g.setColor(new Color(245, 158, 11, 200));
-            g.setStroke(new BasicStroke(1.5f));
-            g.drawRoundRect(badgeX, badgeY, badgeW, badgeH, 22, 22);
+            g.setStroke(new BasicStroke(1.2f));
+            g.drawRoundRect(badgeX, badgeY, badgeW, badgeH, 17, 17);
 
-            g.setFont(new Font("SansSerif", Font.BOLD, 16));
+            g.setFont(new Font("SansSerif", Font.BOLD, 13));
             g.setColor(new Color(251, 191, 36));
             FontMetrics badgeFm = g.getFontMetrics();
             String badgeText = "AUDIO TRACK";
@@ -76,44 +92,45 @@ public class TitleCardRenderer {
             g.drawString(badgeText, btx, bty);
 
             // 4. Track Title
-            g.setFont(new Font("SansSerif", Font.BOLD, 46));
+            g.setFont(new Font("SansSerif", Font.BOLD, 32));
             g.setColor(Color.WHITE);
             FontMetrics titleFm = g.getFontMetrics();
             String displayTitle = cleanTitle;
-            if (titleFm.stringWidth(displayTitle) > cardW - 120) {
-                while (displayTitle.length() > 5 && titleFm.stringWidth(displayTitle + "...") > cardW - 120) {
+            if (titleFm.stringWidth(displayTitle) > cardW - 80) {
+                while (displayTitle.length() > 5 && titleFm.stringWidth(displayTitle + "...") > cardW - 80) {
                     displayTitle = displayTitle.substring(0, displayTitle.length() - 1);
                 }
                 displayTitle = displayTitle + "...";
             }
             int tX = (WIDTH - titleFm.stringWidth(displayTitle)) / 2;
-            int tY = badgeY + 120;
+            int tY = badgeY + 80;
             g.drawString(displayTitle, tX, tY);
 
             // Subtitle
-            g.setFont(new Font("SansSerif", Font.PLAIN, 22));
+            g.setFont(new Font("SansSerif", Font.PLAIN, 16));
             g.setColor(new Color(148, 163, 184));
             FontMetrics subFm = g.getFontMetrics();
             int sX = (WIDTH - subFm.stringWidth(cleanSubtitle)) / 2;
-            int sY = tY + 45;
+            int sY = tY + 34;
             g.drawString(cleanSubtitle, sX, sY);
 
             // 5. Waveform container cutout frame
-            int waveW = 1040;
-            int waveH = 170;
+            int waveW = 720;
+            int waveH = 120;
             int waveX = (WIDTH - waveW) / 2;
-            int waveY = cardY + cardH - waveH - 55;
+            int waveY = cardY + cardH - waveH - 36;
 
             g.setColor(new Color(15, 23, 42, 180));
-            g.fillRoundRect(waveX, waveY, waveW, waveH, 24, 24);
+            g.fillRoundRect(waveX, waveY, waveW, waveH, 20, 20);
             g.setColor(new Color(51, 65, 85, 160));
-            g.setStroke(new BasicStroke(1.5f));
-            g.drawRoundRect(waveX, waveY, waveW, waveH, 24, 24);
+            g.setStroke(new BasicStroke(1.2f));
+            g.drawRoundRect(waveX, waveY, waveW, waveH, 20, 20);
 
             // 6. Subtle branding in bottom right corner
-            g.setFont(new Font("SansSerif", Font.PLAIN, 18));
+            g.setFont(new Font("SansSerif", Font.PLAIN, 14));
             g.setColor(new Color(100, 116, 139));
-            g.drawString("CoziCut", WIDTH - 160, HEIGHT - 40);
+            FontMetrics brandFm = g.getFontMetrics();
+            g.drawString(brandName, WIDTH - brandFm.stringWidth(brandName) - 28, HEIGHT - 22);
 
         } finally {
             g.dispose();
@@ -132,8 +149,8 @@ public class TitleCardRenderer {
             name = name.substring(0, dot);
         }
         name = name.replace('_', ' ').replace('-', ' ').trim();
-        if (name.isBlank()) {
-            return "Audio Clip";
+        if (name.length() > 50) {
+            name = name.substring(0, 50) + "...";
         }
         return name;
     }

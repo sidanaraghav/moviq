@@ -175,7 +175,7 @@ public class MediaDownloadService {
         command.add("--max-filesize");
         command.add("500M");
         command.add("--format");
-        command.add("bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best/bestaudio/best");
+        command.add("bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/bestvideo[height<=720]+bestaudio/best[height<=720]/best/bestaudio/best");
         command.add("--merge-output-format");
         command.add("mp4");
         command.add("--print");

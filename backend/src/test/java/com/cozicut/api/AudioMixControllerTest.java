@@ -73,7 +73,7 @@ class AudioMixControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(request().asyncStarted())
                 .andExpect(header().string("Content-Type", "audio/mpeg"))
-                .andExpect(header().string("Content-Disposition", "attachment; filename=\"master_mix.mp3\""))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"moviq_audio.mp3\""))
                 .andReturn();
 
         mockMvc.perform(asyncDispatch(mvcResult))
@@ -175,7 +175,7 @@ class AudioMixControllerTest {
     }
 
     @Test
-    @DisplayName("Video mix request with format=mp4 returns 200 OK and streams cozicut_video.mp4")
+    @DisplayName("Video mix request with format=mp4 returns 200 OK and streams moviq_video.mp4")
     void validVideoMixStreamsMp4() throws Exception {
         Path tempDir = Files.createTempDirectory("test-video-workspace-");
         Path tempOutput = tempDir.resolve("master_mix.mp4");
@@ -205,7 +205,7 @@ class AudioMixControllerTest {
         byte[] responseContent = mockMvc.perform(asyncDispatch(mvcResult))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "video/mp4"))
-                .andExpect(header().string("Content-Disposition", "attachment; filename=\"cozicut_video.mp4\""))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"moviq_video.mp4\""))
                 .andReturn()
                 .getResponse()
                 .getContentAsByteArray();
