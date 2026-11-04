@@ -1,0 +1,5 @@
+# Caddyfile for automatic HTTPS on OCI
+# Replace with your domain name (or keep as :80 for plain HTTP)
+{$DOMAIN::80} {
+    reverse_proxy moviq:8080
+}
