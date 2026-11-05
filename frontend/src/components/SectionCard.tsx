@@ -368,6 +368,8 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           startSeconds={section.startSeconds}
           endSeconds={section.endSeconds}
           onRangeChange={(start, end) => onUpdateRange(section.id, start, end)}
+          duration={sourceDuration}
+          isVideo={isVideo}
         />
       )}
 
