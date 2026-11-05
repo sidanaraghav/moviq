@@ -139,7 +139,7 @@ export const ClipGroupCard: React.FC<ClipGroupCardProps> = ({
                 ) : (
                   <Music className="w-3.5 h-3.5 text-stone-500 shrink-0" />
                 )}
-                <span className="truncate max-w-[200px] sm:max-w-xs" title={clipGroup.name}>
+                <span className="truncate max-w-[120px] xs:max-w-[180px] sm:max-w-xs" title={clipGroup.name}>
                   {clipGroup.name}
                 </span>
                 <span className="text-stone-400 font-mono">

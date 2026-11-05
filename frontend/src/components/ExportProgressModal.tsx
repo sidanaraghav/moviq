@@ -65,12 +65,12 @@ export const ExportProgressModal: React.FC<ExportProgressModalProps> = ({
         <div className="w-full flex items-baseline justify-between mb-2 px-1">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-400">
             {clampedProgress < 25
-              ? 'Uploading'
+              ? 'Step 1/3: Uploading'
               : clampedProgress < 85
               ? isVideo
-                ? 'Processing 720p HD'
-                : 'Processing Audio'
-              : 'Finalizing'}
+                ? 'Step 2/3: Processing 720p HD'
+                : 'Step 2/3: Processing Audio'
+              : 'Step 3/3: Downloading'}
           </span>
           <span
             className={`text-2xl font-black tabular-nums ${

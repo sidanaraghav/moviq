@@ -231,7 +231,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
             value={section.label}
             placeholder={`Clip ${clipIndex + 1}, Section ${sectionIndex + 1} label (optional)`}
             onChange={(e) => onUpdateLabel(section.id, e.target.value)}
-            className="text-xs font-medium text-stone-800 bg-stone-50 hover:bg-stone-100/70 focus:bg-white border border-transparent focus:border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none transition w-44 sm:w-56"
+            className="text-xs font-medium text-stone-800 bg-stone-50 hover:bg-stone-100/70 focus:bg-white border border-transparent focus:border-stone-300 rounded-lg px-2.5 py-1 focus:outline-none transition w-28 xs:w-36 sm:w-56"
           />
         </div>
 
@@ -311,10 +311,10 @@ export const SectionCard: React.FC<SectionCardProps> = ({
       </div>
 
       {/* Free-form Time Controls: Start, End, and Length */}
-      <div className="grid grid-cols-3 gap-2.5 mt-3 pt-2.5 border-t border-stone-100 text-xs">
+      <div className="grid grid-cols-3 gap-2 sm:gap-2.5 mt-3 pt-2.5 border-t border-stone-100 text-xs">
         <div>
-          <label className="block text-stone-500 font-medium mb-1 text-[11px]">
-            Start <span className="text-[10px] text-stone-400">(e.g. 0:15)</span>
+          <label className="block text-stone-500 font-medium mb-1 text-[11px] truncate">
+            Start <span className="text-[10px] text-stone-400 hidden sm:inline">(e.g. 0:15)</span>
           </label>
           <input
             type="text"
@@ -323,13 +323,13 @@ export const SectionCard: React.FC<SectionCardProps> = ({
             onBlur={handleStartCommit}
             onKeyDown={(e) => e.key === 'Enter' && handleStartCommit()}
             placeholder="0:00"
-            className="w-full bg-stone-50 border border-stone-200 focus:bg-white rounded-lg px-2.5 py-1 text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 transition"
+            className="w-full bg-stone-50 border border-stone-200 focus:bg-white rounded-lg px-2 sm:px-2.5 py-1 text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 transition"
           />
         </div>
 
         <div>
-          <label className="block text-stone-500 font-medium mb-1 text-[11px]">
-            End <span className="text-[10px] text-stone-400">(e.g. 0:45)</span>
+          <label className="block text-stone-500 font-medium mb-1 text-[11px] truncate">
+            End <span className="text-[10px] text-stone-400 hidden sm:inline">(e.g. 0:45)</span>
           </label>
           <input
             type="text"
@@ -338,13 +338,13 @@ export const SectionCard: React.FC<SectionCardProps> = ({
             onBlur={handleEndCommit}
             onKeyDown={(e) => e.key === 'Enter' && handleEndCommit()}
             placeholder="0:30"
-            className="w-full bg-stone-50 border border-stone-200 focus:bg-white rounded-lg px-2.5 py-1 text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 transition"
+            className="w-full bg-stone-50 border border-stone-200 focus:bg-white rounded-lg px-2 sm:px-2.5 py-1 text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 transition"
           />
         </div>
 
         <div>
-          <label className="block text-stone-500 font-medium mb-1 text-[11px]">
-            Length <span className="text-[10px] text-stone-400">(seconds)</span>
+          <label className="block text-stone-500 font-medium mb-1 text-[11px] truncate">
+            Length <span className="text-[10px] text-stone-400 hidden sm:inline">(seconds)</span>
           </label>
           <div className="relative">
             <input
@@ -354,9 +354,9 @@ export const SectionCard: React.FC<SectionCardProps> = ({
               onBlur={handleDurationCommit}
               onKeyDown={(e) => e.key === 'Enter' && handleDurationCommit()}
               placeholder="15.0"
-              className="w-full bg-stone-50 border border-stone-200 focus:bg-white rounded-lg px-2.5 py-1 text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 transition pr-6"
+              className="w-full bg-stone-50 border border-stone-200 focus:bg-white rounded-lg px-2 sm:px-2.5 py-1 text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-stone-400 transition pr-5 sm:pr-6"
             />
-            <span className="absolute right-2 top-1.5 text-[11px] font-mono text-stone-400 pointer-events-none">
+            <span className="absolute right-1.5 sm:right-2 top-1.5 text-[11px] font-mono text-stone-400 pointer-events-none">
               s
             </span>
           </div>

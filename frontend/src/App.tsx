@@ -993,10 +993,12 @@ export default function App() {
               </div>
               <div>
                 <p className="text-xs sm:text-sm font-bold text-stone-800">
-                  Drag & drop audio or video files here
+                  <span className="sm:hidden">Tap to choose audio or video files</span>
+                  <span className="hidden sm:inline">Drag & drop audio or video files here</span>
                 </p>
                 <p className="text-[11px] text-stone-500 mt-0.5">
-                  or <span className="text-stone-900 underline underline-offset-2 font-semibold">browse files</span> from your computer
+                  <span className="sm:hidden">from your photo library or files</span>
+                  <span className="hidden sm:inline">or <span className="text-stone-900 underline underline-offset-2 font-semibold">browse files</span> from your computer</span>
                 </p>
               </div>
               <span className="text-[10px] text-stone-400 font-medium">

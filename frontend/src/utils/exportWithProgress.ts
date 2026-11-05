@@ -36,11 +36,12 @@ export function exportWithProgress({
 
         const loadedMb = (event.loaded / (1024 * 1024)).toFixed(1);
         const totalMb = (event.total / (1024 * 1024)).toFixed(1);
+        const filePct = Math.round(fraction * 100);
 
         if (uploadPct < 25) {
-          onProgress(uploadPct, `Uploading clips... (${loadedMb} MB / ${totalMb} MB)`);
+          onProgress(uploadPct, `Uploading files: ${filePct}% (${loadedMb} MB / ${totalMb} MB)`);
         } else {
-          onProgress(25, 'Upload complete. Starting media processing...');
+          onProgress(25, 'Upload complete (100%). Starting media processing...');
         }
       }
     };
