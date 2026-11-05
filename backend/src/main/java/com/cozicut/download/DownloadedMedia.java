@@ -12,17 +12,23 @@ public final class DownloadedMedia implements AutoCloseable {
     private final String title;
     private final String contentType;
     private final boolean isVideo;
+    private final String peaks;
 
     public DownloadedMedia(Path workspace, Path outputFile, String title) {
-        this(workspace, outputFile, title, "audio/mpeg", false);
+        this(workspace, outputFile, title, "audio/mpeg", false, null);
     }
 
     public DownloadedMedia(Path workspace, Path outputFile, String title, String contentType, boolean isVideo) {
+        this(workspace, outputFile, title, contentType, isVideo, null);
+    }
+
+    public DownloadedMedia(Path workspace, Path outputFile, String title, String contentType, boolean isVideo, String peaks) {
         this.workspace = workspace;
         this.outputFile = outputFile;
         this.title = title;
         this.contentType = contentType != null ? contentType : (isVideo ? "video/mp4" : "audio/mpeg");
         this.isVideo = isVideo;
+        this.peaks = peaks;
     }
 
     public Path outputFile() {
@@ -41,6 +47,10 @@ public final class DownloadedMedia implements AutoCloseable {
         return isVideo;
     }
 
+    public String peaks() {
+        return peaks;
+    }
+
     @Override
     public void close() throws IOException {
         if (Files.exists(workspace)) {
@@ -48,24 +58,11 @@ public final class DownloadedMedia implements AutoCloseable {
                 paths.sorted(Comparator.reverseOrder()).forEach(path -> {
                     try {
                         Files.deleteIfExists(path);
-                    } catch (IOException exception) {
-                        throw new WorkspaceCleanupException(exception);
+                    } catch (IOException ignored) {
+                        // best-effort cleanup
                     }
                 });
-            } catch (WorkspaceCleanupException exception) {
-                throw exception.getCause();
             }
-        }
-    }
-
-    private static final class WorkspaceCleanupException extends RuntimeException {
-        WorkspaceCleanupException(IOException cause) {
-            super(cause);
-        }
-
-        @Override
-        public synchronized IOException getCause() {
-            return (IOException) super.getCause();
         }
     }
 }

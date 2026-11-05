@@ -13,6 +13,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins("*")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .exposedHeaders("Content-Disposition", "X-Media-Title", "X-Media-Is-Video");
+                .exposedHeaders("Content-Disposition", "X-Media-Title", "X-Media-Is-Video", "X-Media-Peaks");
     }
 }

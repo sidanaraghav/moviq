@@ -35,6 +35,7 @@ public class MediaDownloadService {
     private final Duration timeout;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final com.cozicut.media.WaveformExtractorService waveformExtractorService;
 
     public MediaDownloadService(
             @Value("${cozicut.ytdlp.executable:/opt/homebrew/bin/yt-dlp}") String ytdlpExecutable,
@@ -42,7 +43,8 @@ public class MediaDownloadService {
             @Value("${cozicut.ffmpeg.executable:/opt/homebrew/bin/ffmpeg}") String ffmpegExecutable,
             @Value("${cozicut.ffprobe.executable:/opt/homebrew/bin/ffprobe}") String ffprobeExecutable,
             @Value("${cozicut.ytdlp.timeout-seconds:120}") long timeoutSeconds,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            com.cozicut.media.WaveformExtractorService waveformExtractorService
     ) {
         this.ytdlpExecutable = ytdlpExecutable;
         this.nodeExecutable = nodeExecutable;
@@ -54,6 +56,7 @@ public class MediaDownloadService {
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         this.objectMapper = objectMapper;
+        this.waveformExtractorService = waveformExtractorService;
     }
 
     public DownloadedMedia download(String rawUrl) {
@@ -98,7 +101,8 @@ public class MediaDownloadService {
                     resolvedTitle = "Spotify Track";
                 }
 
-                return new DownloadedMedia(workspace, outputFile, sanitizeFilename(resolvedTitle), "audio/mpeg", false);
+                String peaks = waveformExtractorService.extractPeaksAsString(outputFile, 400);
+                return new DownloadedMedia(workspace, outputFile, sanitizeFilename(resolvedTitle), "audio/mpeg", false, peaks);
             }
 
             // For general URLs: preserve video if present (MP4), or keep as audio (MP3) if audio-only
@@ -138,7 +142,8 @@ public class MediaDownloadService {
                 } else {
                     remuxToMp4(downloadedRaw, finalMp4);
                 }
-                return new DownloadedMedia(workspace, finalMp4, sanitizeFilename(resolvedTitle), "video/mp4", true);
+                String peaks = waveformExtractorService.extractPeaksAsString(finalMp4, 400);
+                return new DownloadedMedia(workspace, finalMp4, sanitizeFilename(resolvedTitle), "video/mp4", true, peaks);
             } else {
                 // Audio-only media (e.g. SoundCloud, podcast, audio stream) - ensure MP3
                 Path finalMp3 = workspace.resolve("audio_final.mp3");
@@ -147,7 +152,8 @@ public class MediaDownloadService {
                 } else {
                     convertToMp3(downloadedRaw, finalMp3);
                 }
-                return new DownloadedMedia(workspace, finalMp3, sanitizeFilename(resolvedTitle), "audio/mpeg", false);
+                String peaks = waveformExtractorService.extractPeaksAsString(finalMp3, 400);
+                return new DownloadedMedia(workspace, finalMp3, sanitizeFilename(resolvedTitle), "audio/mpeg", false, peaks);
             }
 
         } catch (IOException exception) {

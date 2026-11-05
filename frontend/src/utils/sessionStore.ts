@@ -19,6 +19,7 @@ export interface SavedClipMeta {
   name: string;
   duration: number;
   isVideo: boolean;
+  peaks?: number[];
   sections: SavedSectionItem[];
 }
 

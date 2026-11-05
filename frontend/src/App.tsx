@@ -119,6 +119,7 @@ export default function App() {
               file,
               duration: c.duration,
               isVideo: c.isVideo,
+              peaks: c.peaks,
               objectUrl,
               showVideoPlayer: false,
               sections: c.sections,
@@ -184,6 +185,7 @@ export default function App() {
           name: g.name,
           duration: g.duration,
           isVideo: g.isVideo,
+          peaks: g.peaks,
           sections: g.sections,
         })),
       };
@@ -304,10 +306,24 @@ export default function App() {
       const finalType = isVideo ? 'video/mp4' : 'audio/mpeg';
       const extension = isVideo ? 'mp4' : 'mp3';
 
+      const peaksHeader = response.headers.get('X-Media-Peaks');
+      let initialPeaks: number[] | undefined;
+      if (peaksHeader) {
+        try {
+          initialPeaks = peaksHeader
+            .split(',')
+            .map((s) => parseInt(s.trim(), 10))
+            .filter((n) => !isNaN(n))
+            .map((n) => Math.round((n / 100) * 1000) / 1000);
+        } catch {
+          // ignore
+        }
+      }
+
       const blob = await response.blob();
       const file = new File([blob], `${title}.${extension}`, { type: finalType });
 
-      processNewFiles([file]);
+      processNewFiles([file], initialPeaks);
       setUrlInput('');
     } catch (err: any) {
       setErrorMessage(err.message || 'Could not import media from link.');
@@ -316,7 +332,7 @@ export default function App() {
     }
   };
 
-  const processNewFiles = (newFiles: File[]) => {
+  const processNewFiles = (newFiles: File[], initialPeaks?: number[]) => {
     setErrorMessage(null);
     newFiles.forEach((file) => {
       const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -328,6 +344,28 @@ export default function App() {
       const media = document.createElement(isVideo ? 'video' : 'audio');
       media.src = objectUrl;
 
+      // For local video uploads without pre-extracted peaks, compute them asynchronously
+      if (isVideo && (!initialPeaks || initialPeaks.length === 0)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        fetch('/api/v1/media/peaks', {
+          method: 'POST',
+          body: formData,
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data && Array.isArray(data.peaks) && data.peaks.length > 0) {
+              const normPeaks = data.peaks.map((p: number) => Math.round((p / 100) * 1000) / 1000);
+              setClipGroups((prev) =>
+                prev.map((g) => (g.id === fileId ? { ...g, peaks: normPeaks } : g))
+              );
+            }
+          })
+          .catch((err) => {
+            console.warn('Could not extract video waveform peaks:', err);
+          });
+      }
+
       media.onloadedmetadata = () => {
         const duration = Math.round((media.duration || 60) * 10) / 10;
         const initialEnd = Math.min(duration, 30);
@@ -338,6 +376,7 @@ export default function App() {
           name: file.name,
           duration,
           isVideo,
+          peaks: initialPeaks,
           objectUrl,
           showVideoPlayer: false,
           sections: [
@@ -361,6 +400,7 @@ export default function App() {
           name: file.name,
           duration: 180,
           isVideo,
+          peaks: initialPeaks,
           objectUrl,
           showVideoPlayer: false,
           sections: [

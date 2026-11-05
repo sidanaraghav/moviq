@@ -36,6 +36,9 @@ class MediaImportControllerTest {
     @MockitoBean
     private MediaDownloadService downloadService;
 
+    @MockitoBean
+    private com.cozicut.media.WaveformExtractorService waveformExtractorService;
+
     @Test
     @DisplayName("Valid URL import request returns 200 OK, audio/mpeg header, X-Media-Title and streams MP3")
     void validUrlImportReturnsOkAndStreamsAudio() throws Exception {

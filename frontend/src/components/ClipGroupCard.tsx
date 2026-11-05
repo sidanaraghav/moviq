@@ -20,6 +20,7 @@ export interface ClipGroup {
   isVideo: boolean;
   objectUrl: string;
   showVideoPlayer?: boolean;
+  peaks?: number[];
   sections: SectionItem[];
 }
 
@@ -237,6 +238,7 @@ export const ClipGroupCard: React.FC<ClipGroupCardProps> = ({
             sourceDuration={clipGroup.duration}
             sourceObjectUrl={clipGroup.objectUrl}
             isVideo={clipGroup.isVideo}
+            peaks={clipGroup.peaks}
             isAuditioning={activeAuditionSectionId === section.id}
             onUpdateRange={(sId, start, end) =>
               onUpdateSectionRange(clipGroup.id, sId, start, end)

@@ -29,6 +29,7 @@ interface SectionCardProps {
   sourceDuration: number;
   sourceObjectUrl: string;
   isVideo?: boolean;
+  peaks?: number[];
   isAuditioning?: boolean;
   onUpdateRange: (sectionId: string, start: number, end: number) => void;
   onUpdateLabel: (sectionId: string, label: string) => void;
@@ -47,6 +48,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   sourceDuration,
   sourceObjectUrl,
   isVideo = false,
+  peaks,
   isAuditioning = false,
   onUpdateRange,
   onUpdateLabel,
@@ -370,6 +372,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           onRangeChange={(start, end) => onUpdateRange(section.id, start, end)}
           duration={sourceDuration}
           isVideo={isVideo}
+          peaks={peaks}
         />
       )}
 

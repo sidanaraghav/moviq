@@ -11,6 +11,7 @@ interface WaveformTrimmerProps {
   onRangeChange: (start: number, end: number) => void;
   duration?: number;
   isVideo?: boolean;
+  peaks?: number[];
 }
 
 export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
@@ -20,6 +21,7 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
   onRangeChange,
   duration: initialDuration,
   isVideo: isVideoProp,
+  peaks,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const visualTrackRef = useRef<HTMLDivElement>(null);
@@ -31,15 +33,31 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
   const [isPlayingSnippet, setIsPlayingSnippet] = useState(false);
   const [currentTime, setCurrentTime] = useState(startSeconds);
   const [isReady, setIsReady] = useState(false);
-  const [useVisualFallback, setUseVisualFallback] = useState<boolean>(false);
   const [totalDuration, setTotalDuration] = useState<number>(initialDuration || 0);
+
+  const isVideo =
+    isVideoProp ||
+    file.type.startsWith('video/') ||
+    file.name.match(/\.(mp4|mov|mkv|webm|m4v|avi)$/i) !== null;
+
+  const hasPeaks = Array.isArray(peaks) && peaks.length > 0;
+
+  // Use visual track fallback only if it's a video file and we don't have server-extracted peaks yet
+  const [useVisualFallback, setUseVisualFallback] = useState<boolean>(
+    isVideo && !hasPeaks
+  );
+
+  // Switch to waveform view as soon as server peaks arrive
+  useEffect(() => {
+    if (hasPeaks) {
+      setUseVisualFallback(false);
+    }
+  }, [hasPeaks]);
 
   // Dragging state for visual track
   const dragModeRef = useRef<'none' | 'start' | 'end' | 'window'>('none');
   const dragStartXRef = useRef<number>(0);
   const dragInitialRangeRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
-
-  const isVideo = isVideoProp || file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|mkv|webm|m4v|avi)$/i) !== null;
 
   // Determine media duration
   useEffect(() => {
@@ -67,11 +85,9 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
     };
   }, [file, initialDuration, isVideo]);
 
-  // Audio waveform initialization via WaveSurfer (for pure audio files)
+  // WaveSurfer initialization (renders real waveform using server peaks for video or browser decode for audio)
   useEffect(() => {
-    // If it's a video file, Web Audio decodeAudioData cannot decode MP4 video containers.
-    // Seamlessly use the Interactive Visual Timeline Track instead of failing.
-    if (isVideo) {
+    if (isVideo && !hasPeaks) {
       setUseVisualFallback(true);
       setIsReady(true);
       return;
@@ -80,44 +96,70 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
     if (!containerRef.current) return;
 
     const objectUrl = URL.createObjectURL(file);
+    const mediaEl = document.createElement(isVideo ? 'video' : 'audio');
+    mediaEl.src = objectUrl;
+    mediaEl.preload = 'metadata';
 
     try {
       const ws = WaveSurfer.create({
         container: containerRef.current,
         waveColor: '#d6d3d1',
-        progressColor: '#d6d3d1',
+        progressColor: '#ea580c',
         cursorColor: '#ea580c',
         cursorWidth: 2,
         height: 80,
         normalize: true,
+        media: mediaEl,
         url: objectUrl,
+        peaks: hasPeaks ? [peaks] : undefined,
+        duration:
+          totalDuration > 0
+            ? totalDuration
+            : initialDuration && initialDuration > 0
+            ? initialDuration
+            : undefined,
       });
 
       const regions = ws.registerPlugin(RegionsPlugin.create());
       regionsRef.current = regions;
       wavesurferRef.current = ws;
 
-      ws.on('ready', () => {
-        setIsReady(true);
-        const fileDuration = ws.getDuration();
+      const initRegion = (durationVal: number) => {
+        const fileDuration = durationVal > 0 ? durationVal : 60;
         setTotalDuration(fileDuration);
 
-        const safeEnd = endSeconds > 0 ? Math.min(endSeconds, fileDuration) : fileDuration;
-        const safeStart = Math.min(startSeconds, safeEnd - 0.2);
+        const safeEnd =
+          endSeconds > 0 ? Math.min(endSeconds, fileDuration) : fileDuration;
+        const safeStart = Math.min(startSeconds, Math.max(0, safeEnd - 0.2));
 
+        regions.clearRegions();
         const region = regions.addRegion({
           start: Math.max(0, safeStart),
           end: Math.max(safeStart + 0.2, safeEnd),
-          color: 'rgba(245, 158, 11, 0.12)',
+          color: 'rgba(245, 158, 11, 0.16)',
           drag: true,
           resize: true,
         });
 
         activeRegionRef.current = region;
+        setIsReady(true);
+      };
+
+      ws.on('ready', () => {
+        const d = ws.getDuration();
+        initRegion(d || totalDuration || initialDuration || 60);
       });
 
+      // If pre-extracted peaks and duration are available, initialize region immediately
+      if (
+        hasPeaks &&
+        (totalDuration > 0 || (initialDuration && initialDuration > 0))
+      ) {
+        initRegion(totalDuration > 0 ? totalDuration : initialDuration!);
+      }
+
       ws.on('error', (err) => {
-        console.warn('WaveSurfer decode notice; switching to visual timeline track:', err);
+        console.warn('WaveSurfer notice; falling back to visual track:', err);
         setUseVisualFallback(true);
         setIsReady(true);
       });
@@ -144,14 +186,19 @@ export const WaveformTrimmer: React.FC<WaveformTrimmerProps> = ({
       ws.on('finish', () => setIsPlayingSnippet(false));
 
       return () => {
-        URL.revokeObjectURL(objectUrl);
-        ws.destroy();
+        try {
+          URL.revokeObjectURL(objectUrl);
+          ws.destroy();
+        } catch {
+          // ignore
+        }
       };
-    } catch {
+    } catch (err) {
+      console.warn('WaveSurfer init error; falling back to visual track:', err);
       setUseVisualFallback(true);
       setIsReady(true);
     }
-  }, [file, isVideo]);
+  }, [file, isVideo, hasPeaks, peaks, useVisualFallback]);
 
   // Synchronize WaveSurfer region if start/end changes from outside
   useEffect(() => {
