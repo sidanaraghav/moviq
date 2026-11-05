@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.cozicut</groupId>
-    <artifactId>cozicut-backend</artifactId>
+    <groupId>com.moviq</groupId>
+    <artifactId>moviq-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>cozicut-backend</name>
-    <description>Local backend for CoziCut's media-processing workflow.</description>
+    <name>moviq-backend</name>
+    <description>Backend for Moviq's audio and video medley processing workflow.</description>
 
     <properties>
         <java.version>21</java.version>
