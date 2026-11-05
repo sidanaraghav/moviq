@@ -50,9 +50,15 @@ public class ApiExceptionHandler {
                 .body(new ApiError("Internal Server Error", "Audio processing timed out."));
     }
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ApiExceptionHandler.class);
+
     @ExceptionHandler(MediaProcessingException.class)
     public ResponseEntity<ApiError> processingFailure(MediaProcessingException exception) {
+        log.error("Media processing failure: {}", exception.getMessage(), exception);
+        String details = exception.getMessage() != null && !exception.getMessage().isBlank()
+                ? ": " + exception.getMessage()
+                : ".";
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
-                .body(new ApiError("Unprocessable Content", "The supplied audio could not be processed."));
+                .body(new ApiError("Unprocessable Content", "The supplied audio could not be processed" + details));
     }
 }

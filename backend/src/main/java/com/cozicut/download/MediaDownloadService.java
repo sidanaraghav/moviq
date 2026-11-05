@@ -178,6 +178,8 @@ public class MediaDownloadService {
         }
         command.add("--no-playlist");
         command.add("--no-simulate");
+        command.add("--extractor-args");
+        command.add("youtube:player_client=android,web");
         command.add("--max-filesize");
         command.add("500M");
         command.add("--format");
@@ -201,6 +203,8 @@ public class MediaDownloadService {
         }
         command.add("--no-playlist");
         command.add("--no-simulate");
+        command.add("--extractor-args");
+        command.add("youtube:player_client=android,web");
         command.add("--max-filesize");
         command.add("500M");
         command.add("-x");

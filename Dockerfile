@@ -39,9 +39,11 @@ RUN apt-get update && \
         nodejs \
         curl \
         python3 \
+        python-is-python3 \
         ca-certificates && \
-    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
+    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp && \
+    /usr/local/bin/yt-dlp --version && \
     rm -rf /var/lib/apt/lists/*
 
 # Point to container system binaries
