@@ -68,6 +68,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
 
   // In-browser preview state for this specific section
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [cutCurrentTime, setCutCurrentTime] = useState<number>(section.startSeconds);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -76,6 +77,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
     setStartInput(formatTime(section.startSeconds));
     setEndInput(formatTime(section.endSeconds));
     setDurationInput((section.endSeconds - section.startSeconds).toFixed(1));
+    setCutCurrentTime(section.startSeconds);
     if (isVideo && videoRef.current && !isPreviewing) {
       videoRef.current.currentTime = section.startSeconds;
     }
@@ -139,9 +141,12 @@ export const SectionCard: React.FC<SectionCardProps> = ({
     const media = isVideo ? videoRef.current : audioRef.current;
     if (!media) return;
 
+    setCutCurrentTime(media.currentTime);
+
     if (media.currentTime >= section.endSeconds) {
       media.pause();
       media.currentTime = section.startSeconds;
+      setCutCurrentTime(section.startSeconds);
       setIsPreviewing(false);
     }
   };
@@ -376,6 +381,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
               playsInline
               onTimeUpdate={handleTimeUpdate}
               onPause={() => setIsPreviewing(false)}
+              onPlay={() => setIsPreviewing(true)}
               onEnded={() => setIsPreviewing(false)}
               className="w-full h-full object-contain"
             />
@@ -391,7 +397,44 @@ export const SectionCard: React.FC<SectionCardProps> = ({
             )}
           </div>
 
-          <div className="w-full max-w-sm flex items-center justify-between mt-2 px-1 text-[11px] text-stone-400">
+          {/* Video Cut Interactive Scrubber Bar */}
+          <div className="w-full max-w-sm mt-2.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={togglePreview}
+              className="p-1 rounded-md text-stone-300 hover:text-white hover:bg-stone-800 transition shrink-0 cursor-pointer"
+              title={isPreviewing ? 'Pause' : 'Play'}
+            >
+              {isPreviewing ? (
+                <Pause className="w-3.5 h-3.5 fill-current text-amber-400" />
+              ) : (
+                <Play className="w-3.5 h-3.5 fill-current ml-0.5 text-stone-300" />
+              )}
+            </button>
+
+            <input
+              type="range"
+              min={section.startSeconds}
+              max={section.endSeconds}
+              step={0.05}
+              value={Math.min(section.endSeconds, Math.max(section.startSeconds, cutCurrentTime))}
+              onChange={(e) => {
+                const newTime = parseFloat(e.target.value);
+                setCutCurrentTime(newTime);
+                if (videoRef.current) {
+                  videoRef.current.currentTime = newTime;
+                }
+              }}
+              className="flex-1 h-1.5 bg-stone-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+              title="Drag or slide backward/forward to seek within this cut"
+            />
+
+            <span className="text-[10px] font-mono text-stone-400 shrink-0 tabular-nums">
+              {formatTime(Math.max(0, cutCurrentTime - section.startSeconds))} / {formatTime(section.endSeconds - section.startSeconds)}
+            </span>
+          </div>
+
+          <div className="w-full max-w-sm flex items-center justify-between mt-1 px-1 text-[11px] text-stone-400">
             <span className="flex items-center gap-1.5 font-medium text-stone-300">
               <Film className="w-3.5 h-3.5 text-amber-400" />
               <span>Video Cut: {formatTime(section.startSeconds)} – {formatTime(section.endSeconds)}</span>

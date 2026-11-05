@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Play,
   Pause,
@@ -10,6 +10,8 @@ import {
   Film,
   Music,
   Download,
+  RotateCcw,
+  RotateCw,
 } from 'lucide-react';
 import { formatTime } from '../utils/timeFormat';
 
@@ -43,11 +45,14 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [currentCutTime, setCurrentCutTime] = useState<number>(0);
+  const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
+  const timelineBarRef = useRef<HTMLDivElement | null>(null);
+  const pendingSeekOffsetRef = useRef<number | null>(null);
 
   const currentSection = sections[currentIndex] || null;
 
@@ -67,11 +72,46 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
     elapsedPriorToCurrent + Math.max(0, currentCutTime - (currentSection?.startSeconds || 0))
   );
 
+  // Seek across the entire multi-section medley timeline
+  const seekToOverallTime = useCallback(
+    (targetTime: number) => {
+      const clampedTime = Math.min(totalDuration, Math.max(0, targetTime));
+      let accumulated = 0;
+
+      for (let i = 0; i < sections.length; i++) {
+        const sec = sections[i];
+        const secDur = Math.max(0.01, sec.endSeconds - sec.startSeconds);
+
+        if (clampedTime <= accumulated + secDur || i === sections.length - 1) {
+          const offsetInSec = Math.max(0, Math.min(secDur, clampedTime - accumulated));
+          const targetMediaTime = sec.startSeconds + offsetInSec;
+
+          if (i !== currentIndex) {
+            pendingSeekOffsetRef.current = targetMediaTime;
+            setCurrentIndex(i);
+          } else {
+            const media = sec.isVideo ? videoRef.current : audioRef.current;
+            if (media) {
+              media.currentTime = targetMediaTime;
+            }
+          }
+
+          setCurrentCutTime(targetMediaTime);
+          return;
+        }
+
+        accumulated += secDur;
+      }
+    },
+    [sections, totalDuration, currentIndex]
+  );
+
   // Reset to first section when opened
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(0);
       setIsPlaying(true);
+      pendingSeekOffsetRef.current = null;
       if (sections[0]) {
         setCurrentCutTime(sections[0].startSeconds);
       }
@@ -83,17 +123,23 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
     }
   }, [isOpen, sections]);
 
-  // Load and play when currentSection changes
+  // Load and play when currentSection or currentIndex changes
   useEffect(() => {
     if (!isOpen || !currentSection) return;
 
-    setCurrentCutTime(currentSection.startSeconds);
+    const initialSeek =
+      pendingSeekOffsetRef.current !== null
+        ? pendingSeekOffsetRef.current
+        : currentSection.startSeconds;
+    pendingSeekOffsetRef.current = null;
+
+    setCurrentCutTime(initialSeek);
 
     if (currentSection.isVideo) {
       const v = videoRef.current;
       if (v) {
         v.src = currentSection.sourceUrl;
-        v.currentTime = currentSection.startSeconds;
+        v.currentTime = initialSeek;
         v.muted = isMuted;
         if (isPlaying) {
           v.play().catch(() => setIsPlaying(false));
@@ -103,14 +149,14 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
       const a = audioRef.current;
       if (a) {
         a.src = currentSection.sourceUrl;
-        a.currentTime = currentSection.startSeconds;
+        a.currentTime = initialSeek;
         a.muted = isMuted;
         if (isPlaying) {
           a.play().catch(() => setIsPlaying(false));
         }
       }
     }
-  }, [currentIndex, isOpen, currentSection?.sourceUrl, currentSection?.startSeconds]);
+  }, [currentIndex, isOpen, currentSection?.sourceUrl, currentSection?.startSeconds, isMuted]);
 
   // Handle play/pause state changes
   useEffect(() => {
@@ -132,7 +178,33 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
     if (audioRef.current) audioRef.current.muted = isMuted;
   }, [isMuted]);
 
-  // Animate dynamic waveform title card on canvas when playing an audio-only cut
+  // Keyboard navigation (Space: play/pause, Left: -5s, Right: +5s)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsPlaying((prev) => !prev);
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        seekToOverallTime(currentOverallElapsed - 5);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        seekToOverallTime(currentOverallElapsed + 5);
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentOverallElapsed, seekToOverallTime, onClose]);
+
+  // Dynamic waveform rendering for audio-only cuts
   useEffect(() => {
     if (!isOpen || !currentSection || currentSection.isVideo) {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -256,9 +328,9 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
     };
   }, [isOpen, currentSection, isPlaying]);
 
-  // Handle media time update and track transitions
+  // Handle media time update and sequential cut advancement
   const handleTimeUpdate = () => {
-    if (!currentSection) return;
+    if (isScrubbing || !currentSection) return;
     const media = currentSection.isVideo ? videoRef.current : audioRef.current;
     if (!media) return;
 
@@ -284,7 +356,42 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
     setIsPlaying(true);
   };
 
+  // Interactive scrubber pointer event handlers (supports mouse drag and mobile touch drag)
+  const handleScrubberPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!timelineBarRef.current || totalDuration <= 0) return;
+    const rect = timelineBarRef.current.getBoundingClientRect();
+    const clientX = e.clientX;
+    const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const targetTime = fraction * totalDuration;
+    seekToOverallTime(targetTime);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    setIsScrubbing(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    handleScrubberPointer(e);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isScrubbing) {
+      handleScrubberPointer(e);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isScrubbing) {
+      setIsScrubbing(false);
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
   if (!isOpen || sections.length === 0) return null;
+
+  const scrubberPercentage = totalDuration > 0 ? (currentOverallElapsed / totalDuration) * 100 : 0;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
@@ -307,7 +414,7 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition cursor-pointer"
-            title="Close Preview"
+            title="Close Preview (Esc)"
           >
             <X className="w-5 h-5" />
           </button>
@@ -362,76 +469,106 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
           )}
         </div>
 
-        {/* Multi-Section Visual Timeline Scrubber */}
-        <div className="px-5 pt-3 bg-stone-900/90 border-t border-stone-800">
-          <div className="flex items-center gap-1.5 h-3 bg-stone-800/80 rounded-full p-0.5 overflow-hidden">
-            {sections.map((sec, idx) => {
-              const dur = Math.max(0.1, sec.endSeconds - sec.startSeconds);
-              const flexWeight = Math.max(1, Math.round(dur));
-              const isPast = idx < currentIndex;
-              const isCurrent = idx === currentIndex;
+        {/* Continuous Interactive Medley Timeline Scrubber */}
+        <div className="px-5 pt-4 pb-2 bg-stone-900/95 border-t border-stone-800 select-none">
+          {/* Draggable Scrubber Bar Container */}
+          <div
+            ref={timelineBarRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            className="relative h-6 flex items-center cursor-pointer group touch-none"
+            title="Click or drag to scrub backward or forward across the medley"
+          >
+            {/* Background Segment Track */}
+            <div className="w-full h-3 bg-stone-800/90 rounded-full overflow-hidden flex items-center gap-0.5 p-0.5 border border-stone-700/50">
+              {sections.map((sec, idx) => {
+                const dur = Math.max(0.1, sec.endSeconds - sec.startSeconds);
+                const flexWeight = Math.max(1, Math.round(dur));
+                const isPast = idx < currentIndex;
+                const isCurrent = idx === currentIndex;
 
-              let fillPercent = 0;
-              if (isPast) fillPercent = 100;
-              else if (isCurrent) {
-                fillPercent = Math.min(
-                  100,
-                  Math.max(
-                    0,
-                    ((currentCutTime - sec.startSeconds) / dur) * 100
-                  )
-                );
-              }
+                let fillPercent = 0;
+                if (isPast) fillPercent = 100;
+                else if (isCurrent) {
+                  fillPercent = Math.min(
+                    100,
+                    Math.max(0, ((currentCutTime - sec.startSeconds) / dur) * 100)
+                  );
+                }
 
-              return (
-                <button
-                  key={sec.sectionId}
-                  type="button"
-                  onClick={() => jumpToCut(idx)}
-                  style={{ flex: flexWeight }}
-                  className="h-full bg-stone-700/60 rounded-full overflow-hidden relative group cursor-pointer"
-                  title={`Jump to: ${sec.displayName}`}
-                >
+                return (
                   <div
-                    style={{ width: `${fillPercent}%` }}
-                    className={`h-full transition-all duration-75 ${
-                      isCurrent
-                        ? 'bg-amber-400'
-                        : isPast
-                        ? 'bg-stone-400'
-                        : 'bg-transparent'
-                    }`}
-                  />
-                </button>
-              );
-            })}
+                    key={sec.sectionId}
+                    style={{ flex: flexWeight }}
+                    className="h-full bg-stone-700/40 rounded-sm overflow-hidden relative"
+                  >
+                    <div
+                      style={{ width: `${fillPercent}%` }}
+                      className={`h-full ${
+                        isCurrent
+                          ? 'bg-amber-400'
+                          : isPast
+                          ? 'bg-amber-500/70'
+                          : 'bg-transparent'
+                      }`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Draggable Playhead Pin / Thumb */}
+            <div
+              style={{ left: `${scrubberPercentage}%` }}
+              className="absolute -translate-x-1/2 pointer-events-none transition-transform duration-75 flex flex-col items-center"
+            >
+              <div className="w-4 h-4 rounded-full bg-amber-400 border-2 border-stone-950 shadow-md shadow-amber-400/30 group-hover:scale-125 transition-transform" />
+            </div>
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-stone-400 mt-1.5 font-mono">
-            <span>{formatTime(currentOverallElapsed)}</span>
+          {/* Time Readout and Cut Markers */}
+          <div className="flex items-center justify-between text-[11px] text-stone-400 mt-1 font-mono">
+            <span className="text-amber-400 font-semibold">{formatTime(currentOverallElapsed)}</span>
+            <span className="text-stone-500 text-[10px]">
+              Tip: Click or drag anywhere on the bar to jump forward / backward
+            </span>
             <span>{formatTime(totalDuration)}</span>
           </div>
         </div>
 
         {/* Player Controls Bar */}
-        <div className="px-5 py-3 bg-stone-900 flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* Left: Previous / Play / Next */}
-          <div className="flex items-center gap-3">
+        <div className="px-5 py-3 bg-stone-900 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-stone-800/60">
+          {/* Left: Previous / 5s Back / Play / 5s Forward / Next */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               type="button"
               onClick={() => jumpToCut(currentIndex - 1)}
               disabled={currentIndex === 0}
-              className="p-2 rounded-xl text-stone-300 hover:text-white hover:bg-stone-800 disabled:opacity-30 transition cursor-pointer"
+              className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 disabled:opacity-25 transition cursor-pointer"
               title="Previous Cut"
             >
               <SkipBack className="w-4 h-4 fill-current" />
             </button>
 
+            {/* Skip Backward 5s */}
+            <button
+              type="button"
+              onClick={() => seekToOverallTime(currentOverallElapsed - 5)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-stone-300 hover:text-white hover:bg-stone-800 transition cursor-pointer text-xs font-semibold"
+              title="Rewind 5 seconds (Left Arrow)"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>5s</span>
+            </button>
+
+            {/* Play / Pause Primary Button */}
             <button
               type="button"
               onClick={() => setIsPlaying(!isPlaying)}
-              className="w-10 h-10 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center font-bold shadow-md transition cursor-pointer"
-              title={isPlaying ? 'Pause' : 'Play'}
+              className="w-10 h-10 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 flex items-center justify-center font-bold shadow-md transition cursor-pointer mx-1"
+              title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5 fill-current" />
@@ -440,11 +577,22 @@ export const FullSessionVideoPreview: React.FC<FullSessionVideoPreviewProps> = (
               )}
             </button>
 
+            {/* Skip Forward 5s */}
+            <button
+              type="button"
+              onClick={() => seekToOverallTime(currentOverallElapsed + 5)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-stone-300 hover:text-white hover:bg-stone-800 transition cursor-pointer text-xs font-semibold"
+              title="Forward 5 seconds (Right Arrow)"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>5s</span>
+            </button>
+
             <button
               type="button"
               onClick={() => jumpToCut(currentIndex + 1)}
               disabled={currentIndex === sections.length - 1}
-              className="p-2 rounded-xl text-stone-300 hover:text-white hover:bg-stone-800 disabled:opacity-30 transition cursor-pointer"
+              className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 disabled:opacity-25 transition cursor-pointer"
               title="Next Cut"
             >
               <SkipForward className="w-4 h-4 fill-current" />
