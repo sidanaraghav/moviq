@@ -19,6 +19,8 @@ import {
   FullSessionVideoPreview,
   PlayableSection,
 } from './components/FullSessionVideoPreview';
+import { ExportProgressModal } from './components/ExportProgressModal';
+import { exportWithProgress } from './utils/exportWithProgress';
 import { formatTime } from './utils/timeFormat';
 import { BRAND } from './config/brand';
 import {
@@ -41,6 +43,12 @@ export default function App() {
   const [masterAudioUrl, setMasterAudioUrl] = useState<string | null>(null);
   const [masterVideoUrl, setMasterVideoUrl] = useState<string | null>(null);
   const [isVideoPreviewOpen, setIsVideoPreviewOpen] = useState<boolean>(false);
+
+  // Export progress modal state
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [exportFormat, setExportFormat] = useState<'mp3' | 'mp4'>('mp4');
+  const [exportProgress, setExportProgress] = useState<number>(0);
+  const [exportStatusText, setExportStatusText] = useState<string>('');
 
   // Session auto-save state
   const [isSessionLoaded, setIsSessionLoaded] = useState<boolean>(false);
@@ -687,6 +695,11 @@ export default function App() {
       return;
     }
 
+    setExportFormat(format);
+    setExportProgress(5);
+    setExportStatusText('Preparing media files...');
+    setIsExportModalOpen(true);
+
     if (format === 'mp4') {
       setIsExportingVideo(true);
       setMasterVideoUrl(null);
@@ -717,30 +730,23 @@ export default function App() {
       });
       formData.append('manifest', JSON.stringify(manifest));
 
-      const response = await fetch(`/api/v1/audio/mixes?format=${format}`, {
-        method: 'POST',
-        body: formData,
+      const blob = await exportWithProgress({
+        format,
+        formData,
+        clipCount: allPlayableSections.length,
+        onProgress: (pct, msg) => {
+          setExportProgress(pct);
+          setExportStatusText(msg);
+        },
       });
 
-      if (!response.ok) {
-        let errText = `Failed to create combined ${format === 'mp4' ? 'video' : 'audio'}.`;
-        try {
-          const json = await response.json();
-          errText = json.message || json.error || errText;
-        } catch {
-          errText = `Server returned status ${response.status}`;
-        }
-        throw new Error(errText);
-      }
-
-      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
 
       if (format === 'mp4') {
         setMasterVideoUrl(url);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'cozicut_video.mp4';
+        a.download = BRAND.exportVideoName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -748,12 +754,18 @@ export default function App() {
         setMasterAudioUrl(url);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'cozicut_audio.mp3';
+        a.download = BRAND.exportAudioName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
       }
+
+      // Briefly display 100% completion before closing modal
+      setTimeout(() => {
+        setIsExportModalOpen(false);
+      }, 700);
     } catch (err: any) {
+      setIsExportModalOpen(false);
       setErrorMessage(
         err.message || `An error occurred while creating your ${format === 'mp4' ? 'video' : 'audio'}.`
       );
@@ -1304,6 +1316,14 @@ export default function App() {
         onClose={() => setIsVideoPreviewOpen(false)}
         sections={allPlayableSections}
         onExportVideo={() => generateMix('mp4')}
+      />
+
+      {/* Export Progress Modal */}
+      <ExportProgressModal
+        isOpen={isExportModalOpen}
+        format={exportFormat}
+        progress={exportProgress}
+        statusText={exportStatusText}
       />
     </div>
   );
